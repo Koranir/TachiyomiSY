@@ -49,6 +49,8 @@ class ReaderReadingModeSettings @JvmOverloads constructor(context: Context, attr
             val mangaViewer = (context as ReaderActivity).presenter.getMangaReadingMode()
             if (mangaViewer == ReadingModeType.WEBTOON.flagValue || mangaViewer == ReadingModeType.CONTINUOUS_VERTICAL.flagValue) {
                 initWebtoonPreferences()
+            } else if (mangaViewer == ReadingModeType.RIGHT_TO_LEFT_BOOK.flagValue || mangaViewer == ReadingModeType.LEFT_TO_RIGHT_BOOK.flagValue) {
+                initBookPreferences()
             } else {
                 initPagerPreferences()
             }
@@ -66,6 +68,49 @@ class ReaderReadingModeSettings @JvmOverloads constructor(context: Context, attr
      * Init the preferences for the pager reader.
      */
     private fun initPagerPreferences() {
+        binding.webtoonPrefsGroup.root.isVisible = false
+        binding.pagerPrefsGroup.root.isVisible = true
+
+        binding.pagerPrefsGroup.tappingInverted.bindToPreference(readerPreferences.pagerNavInverted(), PreferenceValues.TappingInvertMode::class.java)
+        binding.pagerPrefsGroup.navigatePan.bindToPreference(readerPreferences.navigateToPan())
+
+        binding.pagerPrefsGroup.pagerNav.bindToPreference(readerPreferences.navigationModePager())
+        readerPreferences.navigationModePager()
+            .asHotFlow {
+                val isTappingEnabled = it != 5
+                binding.pagerPrefsGroup.tappingInverted.isVisible = isTappingEnabled
+                binding.pagerPrefsGroup.navigatePan.isVisible = isTappingEnabled
+            }
+            .launchIn((context as ReaderActivity).lifecycleScope)
+        // Makes so that landscape zoom gets hidden away when image scale type is not fit screen
+        binding.pagerPrefsGroup.scaleType.bindToPreference(readerPreferences.imageScaleType(), 1)
+        readerPreferences.imageScaleType()
+            .asHotFlow { binding.pagerPrefsGroup.landscapeZoom.isVisible = it == 1 }
+            .launchIn((context as ReaderActivity).lifecycleScope)
+        binding.pagerPrefsGroup.landscapeZoom.bindToPreference(readerPreferences.landscapeZoom())
+
+        binding.pagerPrefsGroup.zoomStart.bindToPreference(readerPreferences.zoomStart(), 1)
+        binding.pagerPrefsGroup.cropBorders.bindToPreference(readerPreferences.cropBorders())
+
+        binding.pagerPrefsGroup.dualPageSplit.bindToPreference(readerPreferences.dualPageSplitPaged())
+        // Makes it so that dual page invert gets hidden away when dual page split is turned off
+        readerPreferences.dualPageSplitPaged()
+            .asHotFlow { binding.pagerPrefsGroup.dualPageInvert.isVisible = it }
+            .launchIn((context as ReaderActivity).lifecycleScope)
+        binding.pagerPrefsGroup.dualPageInvert.bindToPreference(readerPreferences.dualPageInvertPaged())
+
+        // SY -->
+        binding.pagerPrefsGroup.pageTransitionsPager.bindToPreference(readerPreferences.pageTransitionsPager())
+        binding.pagerPrefsGroup.pageLayout.bindToPreference(readerPreferences.pageLayout())
+        binding.pagerPrefsGroup.invertDoublePages.bindToPreference(readerPreferences.invertDoublePages())
+        binding.pagerPrefsGroup.centerMarginType.bindToPreference(readerPreferences.centerMarginType())
+        // SY <--
+    }
+
+    /**
+     * Init the preferences for the cooler reader.
+     */
+    private fun initBookPreferences() {
         binding.webtoonPrefsGroup.root.isVisible = false
         binding.pagerPrefsGroup.root.isVisible = true
 

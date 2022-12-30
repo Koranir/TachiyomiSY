@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.ui.reader.viewer.pager
+package eu.kanade.tachiyomi.ui.reader.viewer.book
 
 import android.view.View
 import android.view.ViewGroup
@@ -18,7 +18,7 @@ import kotlin.math.max
 /**
  * Pager adapter used by this [viewer] to where [ViewerChapters] updates are posted.
  */
-class PagerViewerAdapter(private val viewer: PagerViewer) : ViewPagerAdapter() {
+class BookViewerAdapter(private val viewer: BookViewer) : ViewPagerAdapter() {
 
     /**
      * Paired list of currently set items.
@@ -161,8 +161,8 @@ class PagerViewerAdapter(private val viewer: PagerViewer) : ViewPagerAdapter() {
         val item = joinedItems[position].first
         val item2 = joinedItems[position].second
         return when (item) {
-            is ReaderPage -> PagerPageHolder(readerThemedContext, viewer, item, item2 as? ReaderPage)
-            is ChapterTransition -> PagerTransitionHolder(readerThemedContext, viewer, item)
+            is ReaderPage -> BookPageHolder(readerThemedContext, viewer, item, item2 as? ReaderPage)
+            is ChapterTransition -> BookTransitionHolder(readerThemedContext, viewer, item)
             else -> throw NotImplementedError("Holder for ${item.javaClass} not implemented")
         }
     }
@@ -194,14 +194,14 @@ class PagerViewerAdapter(private val viewer: PagerViewer) : ViewPagerAdapter() {
         }
 
         val placeAtIndex = when (viewer) {
-            is L2RPagerViewer,
-            is VerticalPagerViewer,
+            is L2RBookViewer,
+            is VerticalBookViewer,
             -> currentIndex + 1
             else -> currentIndex
         }
 
         // It will enter a endless cycle of insert pages
-        if (viewer is R2LPagerViewer && placeAtIndex - 1 >= 0 && joinedItems[placeAtIndex - 1].first is InsertPage) {
+        if (viewer is R2LBookViewer && placeAtIndex - 1 >= 0 && joinedItems[placeAtIndex - 1].first is InsertPage) {
             return
         }
 
@@ -234,7 +234,7 @@ class PagerViewerAdapter(private val viewer: PagerViewer) : ViewPagerAdapter() {
                 (it as? ReaderPage)?.shiftedPage = false
             }
             this.joinedItems = subItems.map { Pair<Any, Any?>(it, null) }.toMutableList()
-            if (viewer is R2LPagerViewer) {
+            if (viewer is R2LBookViewer) {
                 joinedItems.reverse()
             }
         } else {
@@ -330,7 +330,7 @@ class PagerViewerAdapter(private val viewer: PagerViewer) : ViewPagerAdapter() {
                     pagedIndex++
                 }
             }
-            if (viewer is R2LPagerViewer) {
+            if (viewer is R2LBookViewer) {
                 subJoinedItems.reverse()
             }
 
