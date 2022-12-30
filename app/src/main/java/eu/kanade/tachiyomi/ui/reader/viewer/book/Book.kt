@@ -2,9 +2,7 @@ package eu.kanade.tachiyomi.ui.reader.viewer.book
 
 import android.content.Context
 import android.view.HapticFeedbackConstants
-import android.view.KeyEvent
 import android.view.MotionEvent
-import androidx.viewpager.widget.DirectionalViewPager
 import eu.kanade.tachiyomi.ui.reader.viewer.GestureDetectorWithLongTap
 
 /**
@@ -15,7 +13,7 @@ import eu.kanade.tachiyomi.ui.reader.viewer.GestureDetectorWithLongTap
 open class Book(
     context: Context,
     rtl: Boolean = true,
-) : DirectionalViewPager(context, rtl) {
+) : BookView(context, rtl) {
 
     /**
      * Tap listener function to execute when a tap is detected.
@@ -66,18 +64,6 @@ open class Book(
     }
 
     /**
-     * Whether the given [ev] should be intercepted. Only used to prevent crashes when child
-     * views manipulate [requestDisallowInterceptTouchEvent].
-     */
-    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
-        return try {
-            super.onInterceptTouchEvent(ev)
-        } catch (e: IllegalArgumentException) {
-            false
-        }
-    }
-
-    /**
      * Handles a touch event. Only used to prevent crashes when child views manipulate
      * [requestDisallowInterceptTouchEvent].
      */
@@ -91,15 +77,6 @@ open class Book(
         } catch (e: IllegalArgumentException) {
             false
         }
-    }
-
-    /**
-     * Executes the given key event when this pager has focus. Just do nothing because the reader
-     * already dispatches key events to the viewer and has more control than this method.
-     */
-    override fun executeKeyEvent(event: KeyEvent): Boolean {
-        // Disable viewpager's default key event handling
-        return false
     }
 
     /**

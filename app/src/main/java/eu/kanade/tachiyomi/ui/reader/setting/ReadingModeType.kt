@@ -30,7 +30,12 @@ enum class ReadingModeType(val prefValue: Int, @StringRes val stringRes: Int, @D
 
         fun isPagerType(preference: Int): Boolean {
             val mode = fromPreference(preference)
-            return mode == LEFT_TO_RIGHT || mode == RIGHT_TO_LEFT || mode == VERTICAL || mode == RIGHT_TO_LEFT_BOOK || mode == LEFT_TO_RIGHT_BOOK
+            return mode == LEFT_TO_RIGHT || mode == RIGHT_TO_LEFT || mode == VERTICAL
+        }
+
+        fun isShaderType(preference: Int): Boolean {
+            val mode = fromPreference(preference)
+            return mode == RIGHT_TO_LEFT_BOOK || mode == LEFT_TO_RIGHT_BOOK
         }
 
         fun fromSpinner(position: Int?) = values().find { value -> value.prefValue == position } ?: DEFAULT

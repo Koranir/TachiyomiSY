@@ -226,7 +226,7 @@ class BookViewerAdapter(private val viewer: BookViewer) : ViewPagerAdapter() {
 
     // SY -->
     private fun setJoinedItems(useSecondPage: Boolean = false) {
-        val oldCurrent = joinedItems.getOrNull(viewer.pager.currentItem)
+        val oldCurrent = joinedItems.getOrNull(viewer.book.currentItem)
         if (!viewer.config.doublePages) {
             // If not in double mode, set up items like before
             subItems.forEach {
@@ -362,11 +362,11 @@ class BookViewerAdapter(private val viewer: BookViewer) : ViewPagerAdapter() {
             }
             index = joinedItems.indexOfFirst { it.first == newerPage || it.second == newerPage }
         }
-        viewer.pager.setCurrentItem(index, false)
+        viewer.book.setCurrentItem(index, false)
     }
 
     fun splitDoublePages(current: ReaderPage) {
-        val oldCurrent = joinedItems.getOrNull(viewer.pager.currentItem)
+        val oldCurrent = joinedItems.getOrNull(viewer.book.currentItem)
         setJoinedItems(
             oldCurrent?.second == current ||
                 (current.index + 1) < (
@@ -381,7 +381,7 @@ class BookViewerAdapter(private val viewer: BookViewer) : ViewPagerAdapter() {
         // This case usually happens when we load a new chapter and the first 2 pages need to split og
         viewer.scope.launchUI {
             delay(100)
-            viewer.onPageChange(viewer.pager.currentItem)
+            viewer.onPageChange(viewer.book.currentItem)
         }
     }
     // SY <--
