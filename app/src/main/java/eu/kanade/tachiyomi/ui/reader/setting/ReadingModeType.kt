@@ -11,6 +11,8 @@ import eu.kanade.tachiyomi.ui.reader.viewer.pager.L2RPagerViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.R2LPagerViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.VerticalPagerViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.webtoon.WebtoonViewer
+import eu.kanade.tachiyomi.util.system.logcat
+import logcat.LogPriority
 
 enum class ReadingModeType(val prefValue: Int, @StringRes val stringRes: Int, @DrawableRes val iconRes: Int, val flagValue: Int) {
     DEFAULT(0, R.string.label_default, R.drawable.ic_reader_default_24dp, 0x00000000),
@@ -24,9 +26,20 @@ enum class ReadingModeType(val prefValue: Int, @StringRes val stringRes: Int, @D
     ;
 
     companion object {
-        const val MASK = 0x00000008
+        const val MASK = 0x00000007
 
-        fun fromPreference(preference: Int?): ReadingModeType = values().find { it.flagValue == preference } ?: DEFAULT
+        // fun fromPreference(preference: Int?): ReadingModeType = values().find { it.flagValue == preference } ?: DEFAULT
+        fun fromPreference(preference: Int?): ReadingModeType {
+            var output = values().find {
+                it.flagValue == preference
+            }
+            logcat(LogPriority.ERROR) { "From preference: $preference, returned ${output?.flagValue}" }
+            return if (output == null) {
+                DEFAULT
+            } else {
+                output
+            }
+        }
 
         fun isPagerType(preference: Int): Boolean {
             val mode = fromPreference(preference)
@@ -41,6 +54,7 @@ enum class ReadingModeType(val prefValue: Int, @StringRes val stringRes: Int, @D
         fun fromSpinner(position: Int?) = values().find { value -> value.prefValue == position } ?: DEFAULT
 
         fun toViewer(preference: Int?, activity: ReaderActivity): BaseViewer {
+            logcat(LogPriority.ERROR) { "pref: $preference" }
             return when (fromPreference(preference)) {
                 LEFT_TO_RIGHT -> L2RPagerViewer(activity)
                 RIGHT_TO_LEFT -> R2LPagerViewer(activity)

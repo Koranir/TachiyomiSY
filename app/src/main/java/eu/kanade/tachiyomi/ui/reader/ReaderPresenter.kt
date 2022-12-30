@@ -763,6 +763,7 @@ class ReaderPresenter(
         val default = readerPreferences.defaultReadingMode().get()
         val manga = manga ?: return default
         val readingMode = ReadingModeType.fromPreference(manga.readingModeType)
+        logcat(LogPriority.ERROR) { "Get mode: $readingMode" }
         // SY -->
         return when {
             resolveDefault && readingMode == ReadingModeType.DEFAULT && readerPreferences.useAutoWebtoon().get() -> {
@@ -779,11 +780,16 @@ class ReaderPresenter(
      * Updates the viewer position for the open manga.
      */
     fun setMangaReadingMode(readingModeType: Int) {
+        logcat(LogPriority.ERROR) { "Set mode: $readingModeType" }
+        if (manga == null) {
+            logcat(LogPriority.ERROR) { "No manga loaded" }
+        }
         val manga = manga ?: return
         manga.readingModeType = readingModeType
 
         coroutineScope.launchIO {
             setMangaViewerFlags.awaitSetMangaReadingMode(manga.id!!.toLong(), readingModeType.toLong())
+            logcat(LogPriority.ERROR) { "Long mode: ${readingModeType.toLong()}" }
             delay(250)
             val currChapters = viewerChaptersRelay.value
             if (currChapters != null) {

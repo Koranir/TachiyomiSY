@@ -1073,7 +1073,9 @@ class ReaderActivity :
         val viewerMode = ReadingModeType.fromPreference(presenter.getMangaReadingMode(resolveDefault = false))
         binding.actionReadingMode.setImageResource(viewerMode.iconRes)
 
+        logcat(LogPriority.ERROR) { "Mode: ${presenter.getMangaReadingMode()}" }
         val newViewer = ReadingModeType.toViewer(presenter.getMangaReadingMode(), this)
+        logcat(LogPriority.ERROR) { "Viewer: $newViewer" }
 
         updateCropBordersShortcut()
         if (window.sharedElementEnterTransition is MaterialContainerTransform) {

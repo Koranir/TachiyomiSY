@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.reader.viewer.book
 import android.content.Context
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
+import android.view.MotionEvent
 import androidx.annotation.NonNull
 import androidx.viewpager.widget.ViewPager
 import javax.microedition.khronos.egl.EGLConfig
@@ -16,6 +17,7 @@ open class BookView(context: Context, rtl: Boolean) : GLSurfaceView(context) {
     lateinit var adapter: BookViewerAdapter
     fun addOnPageChangeListener(@NonNull listener: ViewPager.OnPageChangeListener) {
     }
+
     fun removeOnPageChangeListener(@NonNull listener: ViewPager.OnPageChangeListener) {
     }
 
@@ -36,12 +38,16 @@ open class BookView(context: Context, rtl: Boolean) : GLSurfaceView(context) {
             currentItem = item
         }
     }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        return true
+    }
 }
 
 class BookRenderer : GLSurfaceView.Renderer {
     override fun onSurfaceCreated(unused: GL10, config: EGLConfig) {
         // Set the background frame color
-        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
+        GLES20.glClearColor(0.0f, 0.2f, 0.8f, 1.0f)
     }
 
     override fun onDrawFrame(unused: GL10) {

@@ -14,7 +14,9 @@ import eu.kanade.tachiyomi.ui.reader.viewer.pager.PagerViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.webtoon.WebtoonViewer
 import eu.kanade.tachiyomi.util.preference.asHotFlow
 import eu.kanade.tachiyomi.util.preference.bindToPreference
+import eu.kanade.tachiyomi.util.system.logcat
 import kotlinx.coroutines.flow.launchIn
+import logcat.LogPriority
 import uy.kohesive.injekt.injectLazy
 
 /**
@@ -45,6 +47,8 @@ class ReaderReadingModeSettings @JvmOverloads constructor(context: Context, attr
         binding.viewer.onItemSelectedListener = { position ->
             val readingModeType = ReadingModeType.fromSpinner(position)
             (context as ReaderActivity).presenter.setMangaReadingMode(readingModeType.flagValue)
+
+            logcat(LogPriority.ERROR) { "Pos: $position" }
 
             val mangaViewer = (context as ReaderActivity).presenter.getMangaReadingMode()
             if (mangaViewer == ReadingModeType.WEBTOON.flagValue || mangaViewer == ReadingModeType.CONTINUOUS_VERTICAL.flagValue) {
