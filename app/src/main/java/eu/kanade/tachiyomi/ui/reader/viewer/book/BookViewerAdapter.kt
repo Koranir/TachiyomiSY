@@ -195,7 +195,6 @@ class BookViewerAdapter(private val viewer: BookViewer) : ViewPagerAdapter() {
 
         val placeAtIndex = when (viewer) {
             is L2RBookViewer,
-            is VerticalBookViewer,
             -> currentIndex + 1
             else -> currentIndex
         }
