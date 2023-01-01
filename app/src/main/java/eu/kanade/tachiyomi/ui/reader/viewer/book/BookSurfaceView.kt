@@ -2,9 +2,11 @@ package eu.kanade.tachiyomi.ui.reader.viewer.book
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.PixelFormat
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.view.MotionEvent
+import android.view.ViewGroup
 import androidx.annotation.NonNull
 import androidx.viewpager.widget.ViewPager
 import eu.kanade.tachiyomi.util.system.logcat
@@ -15,18 +17,11 @@ import java.nio.FloatBuffer
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
-open class BookView(context: Context, rtl: Boolean) : GLSurfaceView(context) {
+open class BookView(context: Context, rtl: Boolean) : ViewGroup(context) {
+    var glView: BookSurfaceView = BookSurfaceView(context, rtl)
 
-    var surfaceHeight = 0
-    var surfaceWidth = 0
-
-    var imageWidth = 0
-    var imageHeight = 0
-    var imageLoaded = false
-
-    var subImageWidth = 0
-    var subImageHeight = 0
-    var subImageLoaded = false
+    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+    }
 
     var currentItem = 0
 
@@ -36,17 +31,6 @@ open class BookView(context: Context, rtl: Boolean) : GLSurfaceView(context) {
     }
 
     fun removeOnPageChangeListener(@NonNull listener: ViewPager.OnPageChangeListener) {
-    }
-
-    private val renderer: BookRenderer
-
-    init {
-        setEGLContextClientVersion(2)
-
-        renderer = BookRenderer()
-
-        setRenderer(renderer)
-        renderMode = RENDERMODE_CONTINUOUSLY
     }
 
     fun setCurrentItem(item: Int, smoothScroll: Boolean) {
@@ -62,6 +46,33 @@ open class BookView(context: Context, rtl: Boolean) : GLSurfaceView(context) {
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         return true
+    }
+}
+
+class BookSurfaceView(context: Context, rtl: Boolean) : GLSurfaceView(context) {
+
+    var surfaceHeight = 0
+    var surfaceWidth = 0
+
+    var imageWidth = 0
+    var imageHeight = 0
+    var imageLoaded = false
+
+    var subImageWidth = 0
+    var subImageHeight = 0
+    var subImageLoaded = false
+
+    private val renderer: BookRenderer
+
+    init {
+        holder.setFormat(PixelFormat.TRANSLUCENT)
+
+        setEGLContextClientVersion(2)
+
+        renderer = BookRenderer()
+
+        setRenderer(renderer)
+        renderMode = RENDERMODE_CONTINUOUSLY
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -100,6 +111,8 @@ class BookRenderer : GLSurfaceView.Renderer {
 
     val fragCode: String = "# version 320 es\n" +
         "\n" +
+        "precision mediump float;\n" +
+        "\n" +
         "in vec2 fragCoord;\n" +
         "out vec4 finalColor;\n" +
         "\n" +
@@ -134,7 +147,7 @@ class BookRenderer : GLSurfaceView.Renderer {
             logcat(LogPriority.ERROR) { "Vertex Shader Creation Failed" }
         }
 
-        var mFrag = GLES20.glCreateShader(GLES20.GL_VERTEX_SHADER)
+        var mFrag = GLES20.glCreateShader(GLES20.GL_FRAGMENT_SHADER)
         if (mFrag != 0) {
             GLES20.glShaderSource(mFrag, fragCode)
 
@@ -198,16 +211,16 @@ class BookRenderer : GLSurfaceView.Renderer {
     }
 
     override fun onDrawFrame(gl: GL10?) {
-        logcat(LogPriority.ERROR) { "Drew frame" }
         // Redraw background color
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
         mVertices.position(0)
-        GLES20.glVertexAttribPointer(vertsI, 4, GLES20.GL_FLOAT, false, 2 * 4, mVertices)
+        GLES20.glVertexAttribPointer(vertsI, 3, GLES20.GL_FLOAT, false, 2 * 4, mVertices)
         GLES20.glEnableVertexAttribArray(vertsI)
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 1)
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 3)
+        // logcat(LogPriority.ERROR) { "${GLES20.glGetError()}" }
     }
 
-    override fun onSurfaceChanged(unused: GL10, width: Int, height: Int) {
+    override fun onSurfaceChanged(gl: GL10, width: Int, height: Int) {
         GLES20.glViewport(0, 0, width, height)
     }
 }
