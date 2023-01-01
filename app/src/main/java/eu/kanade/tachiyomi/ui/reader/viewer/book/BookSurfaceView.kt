@@ -96,10 +96,21 @@ class BookSurfaceView(context: Context, rtl: Boolean) : GLSurfaceView(context) {
         renderMode = RENDERMODE_CONTINUOUSLY
     }
 
+    override fun layout(l: Int, t: Int, r: Int, b: Int) {
+        super.layout(l, t, r, b)
+        logcat(message = { "Layout changed for child" })
+    }
+
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        logcat(message = { "Size changed for child" })
         super.onSizeChanged(w, h, oldw, oldh)
         surfaceHeight = w
         surfaceHeight = h
+    }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+        logcat(message = { "Measured child" })
     }
 }
 
@@ -143,6 +154,7 @@ class BookRenderer : GLSurfaceView.Renderer {
         "}\n"
 
     override fun onSurfaceCreated(unused: GL10, config: EGLConfig) {
+        logcat(message = { "Creating OpenGL Surface" })
         mVertices.put(vertices)
 
         // Set the background frame color

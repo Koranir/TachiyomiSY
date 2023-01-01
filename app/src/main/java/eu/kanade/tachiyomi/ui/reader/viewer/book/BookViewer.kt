@@ -21,7 +21,6 @@ import eu.kanade.tachiyomi.ui.reader.viewer.ViewerNavigation.NavigationRegion
 import eu.kanade.tachiyomi.util.system.logcat
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
-import logcat.LogPriority
 import uy.kohesive.injekt.injectLazy
 import kotlin.math.min
 
@@ -119,9 +118,6 @@ abstract class BookViewer(val activity: ReaderActivity) : BaseViewer {
                 NavigationRegion.RIGHT -> moveRight()
                 NavigationRegion.LEFT -> moveLeft()
             }
-
-            logcat(LogPriority.ERROR) { "Action: ${navigator.getAction(pos)}" }
-            logcat(LogPriority.ERROR) { "Pos: $pos" }
         }
         book.longTapListener = f@{
             if (activity.menuVisible || config.longTapEnabled) {
