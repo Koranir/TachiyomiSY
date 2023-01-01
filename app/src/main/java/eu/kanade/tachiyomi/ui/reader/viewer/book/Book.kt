@@ -1,6 +1,6 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.book
 
-import android.content.Context
+import android.app.Activity
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import eu.kanade.tachiyomi.ui.reader.viewer.GestureDetectorWithLongTap
@@ -11,7 +11,7 @@ import eu.kanade.tachiyomi.ui.reader.viewer.GestureDetectorWithLongTap
  * pager can also be declared to be vertical by creating it with [isHorizontal] to false.
  */
 open class Book(
-    context: Context,
+    context: Activity,
     rtl: Boolean = true,
 ) : BookView(context, rtl) {
 
