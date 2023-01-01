@@ -13,7 +13,7 @@ import eu.kanade.tachiyomi.ui.reader.viewer.GestureDetectorWithLongTap
 open class Book(
     context: Activity,
     rtl: Boolean = true,
-) : BookView(context, rtl) {
+) : BookView(context, rtl = rtl) {
 
     /**
      * Tap listener function to execute when a tap is detected.

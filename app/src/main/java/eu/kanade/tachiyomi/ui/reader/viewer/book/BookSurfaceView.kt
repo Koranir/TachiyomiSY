@@ -9,6 +9,7 @@ import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.view.MotionEvent
 import android.view.View
+import android.view.View.OnTouchListener
 import android.view.ViewGroup
 import androidx.annotation.NonNull
 import androidx.viewpager.widget.ViewPager
@@ -21,12 +22,28 @@ import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 open class BookView(activity: Activity, rtl: Boolean) : ViewGroup(activity) {
-    private lateinit var glView: BookSurfaceView
+    private var glView: BookSurfaceView
 
     init {
         glView = BookSurfaceView(activity, rtl)
         addView(glView)
         addView(View(activity))
+        glView.setOnTouchListener(
+            OnTouchListener { v, event ->
+                val action = event.action
+                when (action and MotionEvent.ACTION_MASK) {
+                    MotionEvent.ACTION_DOWN -> {
+                        glView.renderer.iMouseX = event.x
+                        glView.renderer.iMouseY = event.y
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        glView.renderer.iMouseX = event.x
+                        glView.renderer.iMouseY = event.y
+                    }
+                }
+                true
+            },
+        )
     }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
@@ -70,15 +87,14 @@ open class BookView(activity: Activity, rtl: Boolean) : ViewGroup(activity) {
         glView.setImage(item, image)
     }
 
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        glView
-        return true
+    override fun performClick(): Boolean {
+        return super.performClick()
     }
 }
 
 class BookSurfaceView(context: Context, rtl: Boolean) : GLSurfaceView(context) {
 
-    private val renderer: BookRenderer
+    val renderer: BookRenderer
 
     init {
         holder.setFormat(PixelFormat.TRANSLUCENT)
@@ -108,12 +124,13 @@ class BookSurfaceView(context: Context, rtl: Boolean) : GLSurfaceView(context) {
 
     override fun onDraw(canvas: Canvas?) {
         super.onDraw(canvas)
-        renderer.drawFrame()
+        // renderer.drawFrame()
     }
 
     override fun layout(l: Int, t: Int, r: Int, b: Int) {
         super.layout(l, t, r, b)
         logcat(message = { "Layout changed for child" })
+        logcat(message = { "values: ${renderer.iMouseX}, ${renderer.iMouseY}, ${renderer.surfaceWidth}, ${renderer.surfaceHeight}, ${renderer.imageHeight}, ${renderer.imageWidth}" })
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -126,14 +143,6 @@ class BookSurfaceView(context: Context, rtl: Boolean) : GLSurfaceView(context) {
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
         logcat(message = { "Measured child" })
-    }
-
-    override fun onTouchEvent(event: MotionEvent?): Boolean {
-        if (event != null) {
-            renderer.iMouseX = event.x.toInt()
-            renderer.iMouseY = event.y.toInt()
-        }
-        return super.onTouchEvent(event)
     }
 }
 
@@ -153,16 +162,16 @@ class BookRenderer : GLSurfaceView.Renderer {
     var surfaceHeight = 800 //
     var surfaceWidth = 600 //
 
-    var iMouseX = 0 //
-    var iMouseY = 0 //
+    var iMouseX = 0f //
+    var iMouseY = 0f //
 
     var imageWidth = 100
-    var imageHeight = 100
+    var imageHeight = 141
     var imageLoaded = false
     var mImage: Bitmap? = null
 
     var subImageWidth = 100
-    var subImageHeight = 100
+    var subImageHeight = 141
     var subImageLoaded = false
     var mSubImage: Bitmap? = null
 
@@ -191,24 +200,6 @@ class BookRenderer : GLSurfaceView.Renderer {
 
     val fragCode: String = "# version 320 es\n" +
         "\n" +
-        "in vec2 fragTexCoord;\n" +
-        "out vec4 fragColor;\n" +
-        "\n" +
-        "uniform vec2 iResolution;\n" +
-        "uniform vec2 iMouse;\n" +
-        "\n" +
-        "uniform vec2 imageSize;\n" +
-        "uniform vec2 subImageSize;\n" +
-        "\n" +
-        "uniform Sampler2D iChannel1;\n" +
-        "uniform Sampler2D iChannel2;\n" +
-        "\n" +
-        "vec2 scaledImageSize;\n" +
-        "vec2 imageOffset;\n" +
-        "float scale;\n" +
-        "\n" +
-        "float imageRatio;\n" +
-        "\n" +
         "#define topleft vec2(0., 1./imageRatio)\n" +
         "#define topright vec2(1., 1./imageRatio)\n" +
         "#define bottomright vec2(1., 0.)\n" +
@@ -217,7 +208,25 @@ class BookRenderer : GLSurfaceView.Renderer {
         "#define scale2 vec2(imageRatio, 1.)\n" +
         "#define scale3 vec2(1., imageRatio)\n" +
         "\n" +
-        "#define fragCoord (fragTexCoord/iResolution)\n" +
+        "#define fragCoord (fragTexCoord*iResolution)\n" +
+        "\n" +
+        "precision mediump float;\n" +
+        "\n" +
+        "in vec2 fragTexCoord;\n" +
+        "out vec4 fragColor;\n" +
+        "\n" +
+        "uniform vec2 iResolution;\n" +
+        "uniform vec2 iMouse;\n" +
+        "uniform vec2 subImageSize;\n" +
+        "uniform vec2 mainImageSize;\n" +
+        // "uniform Sampler2D iChannel0;\n" +
+        // "uniform Sampler2D iChannel1;\n" +
+        "\n" +
+        "vec2 scaledImageSize;\n" +
+        "vec2 imageOffset;\n" +
+        "float scale;\n" +
+        "\n" +
+        "float imageRatio;\n" +
         "\n" +
         "vec2 intersects(vec2 A, vec2 B, vec2 C, vec2 D)\n" +
         "{\n" +
@@ -264,20 +273,20 @@ class BookRenderer : GLSurfaceView.Renderer {
         "    vec3 outp;\n" +
         "    \n" +
         "    float screenRatio = iResolution.x/iResolution.y;\n" +
-        "    imageRatio = imageSize.x/imageSize.y;\n" +
+        "    imageRatio = mainImageSize.x/mainImageSize.y;\n" +
         "    \n" +
         "\n" +
         "    \n" +
         "    if(imageRatio > screenRatio)\n" +
         "    {\n" +
-        "        scale = iResolution.x/imageSize.x;\n" +
-        "        scaledImageSize = imageSize * scale;\n" +
+        "        scale = iResolution.x/mainImageSize.x;\n" +
+        "        scaledImageSize = mainImageSize * scale;\n" +
         "        imageOffset = (iResolution.xy - scaledImageSize)/2.;\n" +
         "    }\n" +
         "    else\n" +
         "    {\n" +
-        "        scale = iResolution.y/imageSize.y;\n" +
-        "        scaledImageSize = imageSize * scale;\n" +
+        "        scale = iResolution.y/mainImageSize.y;\n" +
+        "        scaledImageSize = mainImageSize * scale;\n" +
         "        imageOffset = (iResolution.xy - scaledImageSize)/2.;\n" +
         "    }\n" +
         "    \n" +
@@ -311,14 +320,14 @@ class BookRenderer : GLSurfaceView.Renderer {
         "    \n" +
         "    if(clampVec(mirroredpoint))\n" +
         "    {\n" +
-        "        color = texture(iChannel0, uv/scale1).rgb;\n" +
-        "        color = vec4(mirroredpoint/scale1, 0, 1);\n" +
+        // "        color = texture(iChannel0, uv/scale1).rgb;\n" +
+        "        color = vec3(mirroredpoint/scale1, 0);\n" +
         "        color *=  clamp(pow(5.*distfrom, .1), 0., 1.);\n" +
         "    }\n" +
         "    else\n" +
         "    {\n" +
-        "        color = texture(iChannel0, mirroredpoint/scale1).rgb;\n" +
-        "        color = vec4(mirroredpoint/scale1, 0, 1);\n" +
+        // "        color = texture(iChannel0, mirroredpoint/scale1).rgb;\n" +
+        "        color = vec3(mirroredpoint/scale1, 0);\n" +
         "        color *=  clamp(pow(5.*distfrom, .2), 0., 1.);\n" +
         "    }\n" +
         "    \n" +
@@ -335,11 +344,11 @@ class BookRenderer : GLSurfaceView.Renderer {
         "    {\n" +
         "        if(!clampVec(subUV))\n" +
         "        {\n" +
-        "            color = texture(iChannel1, subUV).rgb;\n" +
-        "            color = vec4(subUB, 0, 1);\n" +
+        // "            color = texture(iChannel1, subUV).rgb;\n" +
+        "            color = vec3(subUV, 0);\n" +
         "        }\n" +
         "        else\n" +
-        "            color = vec3(0.);\n" +
+        "            color = vec3(0);\n" +
         "        color *=  clamp(pow(5.*distfrom, .2), 0., 1.);\n" +
         "    }\n" +
         "    fragColor = vec4(color, 1.);\n" +
@@ -434,9 +443,9 @@ class BookRenderer : GLSurfaceView.Renderer {
 
         iResolutionI = GLES20.glGetUniformLocation(mProgram, "iResolution")
         iMouseI = GLES20.glGetUniformLocation(mProgram, "iMouse")
-        iChannel0I = GLES20.glGetUniformLocation(mProgram, "iChannel0")
-        iChannel1I = GLES20.glGetUniformLocation(mProgram, "iChannel1")
-        imageSizeI = GLES20.glGetUniformLocation(mProgram, "imageSize")
+        // iChannel0I = GLES20.glGetUniformLocation(mProgram, "iChannel0")
+        // iChannel1I = GLES20.glGetUniformLocation(mProgram, "iChannel1")
+        imageSizeI = GLES20.glGetUniformLocation(mProgram, "mainImageSize")
         subImageSizeI = GLES20.glGetUniformLocation(mProgram, "subImageSize")
     }
 
@@ -449,7 +458,7 @@ class BookRenderer : GLSurfaceView.Renderer {
         GLES20.glEnableVertexAttribArray(vertsI)
 
         GLES20.glUniform2f(iResolutionI, surfaceWidth.toFloat(), surfaceHeight.toFloat())
-        GLES20.glUniform2f(iMouseI, iMouseX.toFloat(), iMouseY.toFloat())
+        GLES20.glUniform2f(iMouseI, iMouseX, -iMouseY)
         GLES20.glUniform2f(imageSizeI, imageWidth.toFloat(), imageHeight.toFloat())
         GLES20.glUniform2f(subImageSizeI, subImageWidth.toFloat(), subImageHeight.toFloat())
 
@@ -462,6 +471,6 @@ class BookRenderer : GLSurfaceView.Renderer {
     }
 
     override fun onDrawFrame(gl: GL10?) {
-        TODO("Not yet implemented")
+        drawFrame()
     }
 }
