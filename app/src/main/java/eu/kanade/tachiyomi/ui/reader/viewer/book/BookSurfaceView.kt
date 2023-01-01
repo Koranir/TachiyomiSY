@@ -18,9 +18,30 @@ import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 open class BookView(context: Context, rtl: Boolean) : ViewGroup(context) {
-    var glView: BookSurfaceView = BookSurfaceView(context, rtl)
+    private lateinit var glView: BookSurfaceView
+
+    init {
+        glView = BookSurfaceView(context, rtl)
+        addView(glView)
+    }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        updateLayout(l, t, r, b)
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        logcat(message = { "Size changed" })
+        super.onSizeChanged(w, h, oldw, oldh)
+    }
+
+    fun updateLayout(l: Int, t: Int, r: Int, b: Int) {
+        logcat(message = { "Layout changed" })
+        glView.layout(l, t, r, b)
+    }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        logcat(message = { "Measured" })
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 
     var currentItem = 0
