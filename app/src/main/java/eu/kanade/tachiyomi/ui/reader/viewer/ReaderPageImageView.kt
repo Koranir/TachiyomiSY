@@ -51,7 +51,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
     private val isWebtoon: Boolean = false,
 ) : FrameLayout(context, attrs, defStyleAttrs, defStyleRes) {
 
-    private var pageView: View? = null
+    var pageView: View? = null
 
     private var config: Config? = null
 
@@ -109,7 +109,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
         }
     }
 
-    private fun SubsamplingScaleImageView.landscapeZoom(forward: Boolean) {
+    fun SubsamplingScaleImageView.landscapeZoom(forward: Boolean) {
         if (config != null && config!!.landscapeZoom && config!!.minimumScaleType == SCALE_TYPE_CENTER_INSIDE && sWidth > sHeight && scale == minScale) {
             handler?.postDelayed(500) {
                 val point = when (config!!.zoomStartPosition) {
@@ -241,7 +241,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
         addView(pageView, MATCH_PARENT, MATCH_PARENT)
     }
 
-    private fun SubsamplingScaleImageView.setupZoom(config: Config?) {
+    fun SubsamplingScaleImageView.setupZoom(config: Config?) {
         // 5x zoom
         maxScale = scale * MAX_ZOOM_SCALE
         setDoubleTapZoomScale(scale * 2)
@@ -359,7 +359,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
         context.imageLoader.enqueue(request)
     }
 
-    private fun Int.getSystemScaledDuration(): Int {
+    fun Int.getSystemScaledDuration(): Int {
         return (this * context.animatorDurationScale).toInt().coerceAtLeast(1)
     }
 

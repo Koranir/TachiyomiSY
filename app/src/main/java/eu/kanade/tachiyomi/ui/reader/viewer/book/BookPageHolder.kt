@@ -2,10 +2,14 @@ package eu.kanade.tachiyomi.ui.reader.viewer.book
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import android.view.Gravity
 import android.view.LayoutInflater
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
+import com.davemorrissey.labs.subscaleview.ImageSource
+import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import eu.kanade.tachiyomi.databinding.ReaderErrorBinding
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.model.InsertPage
@@ -17,6 +21,7 @@ import eu.kanade.tachiyomi.ui.webview.WebViewActivity
 import eu.kanade.tachiyomi.util.lang.launchUI
 import eu.kanade.tachiyomi.util.system.ImageUtil
 import eu.kanade.tachiyomi.util.system.logcat
+import eu.kanade.tachiyomi.util.view.isVisibleOnScreen
 import eu.kanade.tachiyomi.widget.ViewPagerAdapter
 import kotlinx.coroutines.delay
 import logcat.LogPriority
@@ -333,6 +338,41 @@ class BookPageHolder(
                 }
             }
             .subscribe({}, {})
+    }
+
+    private fun setNonAnimatedImage(
+        image: Any,
+        config: Config,
+    ) = (pageView as? SubsamplingScaleImageView)?.apply {
+        setDoubleTapZoomDuration(config.zoomDuration.getSystemScaledDuration())
+        setMinimumScaleType(config.minimumScaleType)
+        setMinimumDpi(1) // Just so that very small image will be fit for initial load
+        setCropBorders(config.cropBorders)
+        setOnImageEventListener(
+            object : SubsamplingScaleImageView.DefaultOnImageEventListener() {
+                override fun onReady() {
+                    setupZoom(config)
+                    if (isVisibleOnScreen()) landscapeZoom(true)
+                    this@BookPageHolder.onImageLoaded()
+                }
+
+                override fun onImageLoadError(e: Exception) {
+                    this@BookPageHolder.onImageLoadError()
+                }
+            },
+        )
+
+        when (image) {
+            is Drawable -> {
+                val bitmap = (image as BitmapDrawable).bitmap
+                viewer.book.setImage(0, bitmap)
+                viewer.book.setImage(1, bitmap)
+                setImage(ImageSource.bitmap(bitmap))
+            }
+            is InputStream -> setImage(ImageSource.inputStream(image))
+            else -> throw IllegalArgumentException("Not implemented for class ${image::class.simpleName}")
+        }
+        isVisible = true
     }
 
     private fun process(page: ReaderPage, imageStream: BufferedInputStream): InputStream {

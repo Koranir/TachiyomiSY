@@ -7,6 +7,7 @@ import android.graphics.Canvas
 import android.graphics.PixelFormat
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
+import android.opengl.GLUtils
 import android.view.MotionEvent
 import android.view.View
 import android.view.View.OnTouchListener
@@ -110,12 +111,12 @@ class BookSurfaceView(context: Context, rtl: Boolean) : GLSurfaceView(context) {
     fun setImage(item: Int, image: Bitmap) {
         when (item) {
             0 -> {
-                renderer.mImage = image
+                renderer.loadTexture(item, image)
                 renderer.imageWidth = image.width
                 renderer.imageHeight = image.height
             }
             1 -> {
-                renderer.mSubImage = image
+                renderer.loadTexture(item, image)
                 renderer.subImageWidth = image.width
                 renderer.subImageHeight = image.height
             }
@@ -168,12 +169,12 @@ class BookRenderer : GLSurfaceView.Renderer {
     var imageWidth = 100
     var imageHeight = 141
     var imageLoaded = false
-    var mImage: Bitmap? = null
+    var mImage = IntArray(1)
 
     var subImageWidth = 100
     var subImageHeight = 141
     var subImageLoaded = false
-    var mSubImage: Bitmap? = null
+    var mSubImage = IntArray(1)
 
     var vertsI = 0
 
@@ -215,12 +216,12 @@ class BookRenderer : GLSurfaceView.Renderer {
         "in vec2 fragTexCoord;\n" +
         "out vec4 fragColor;\n" +
         "\n" +
+        "uniform Sampler2D iChannel0;\n" +
+        "uniform Sampler2D iChannel1;\n" +
         "uniform vec2 iResolution;\n" +
         "uniform vec2 iMouse;\n" +
         "uniform vec2 subImageSize;\n" +
         "uniform vec2 mainImageSize;\n" +
-        // "uniform Sampler2D iChannel0;\n" +
-        // "uniform Sampler2D iChannel1;\n" +
         "\n" +
         "vec2 scaledImageSize;\n" +
         "vec2 imageOffset;\n" +
@@ -320,14 +321,14 @@ class BookRenderer : GLSurfaceView.Renderer {
         "    \n" +
         "    if(clampVec(mirroredpoint))\n" +
         "    {\n" +
-        // "        color = texture(iChannel0, uv/scale1).rgb;\n" +
-        "        color = vec3(mirroredpoint/scale1, 0);\n" +
+        "        color = texture(iChannel0, uv/scale1).rgb;\n" +
+        // "        color = vec3(mirroredpoint/scale1, 0);\n" +
         "        color *=  clamp(pow(5.*distfrom, .1), 0., 1.);\n" +
         "    }\n" +
         "    else\n" +
         "    {\n" +
-        // "        color = texture(iChannel0, mirroredpoint/scale1).rgb;\n" +
-        "        color = vec3(mirroredpoint/scale1, 0);\n" +
+        "        color = texture(iChannel0, mirroredpoint/scale1).rgb;\n" +
+        // "        color = vec3(mirroredpoint/scale1, 0);\n" +
         "        color *=  clamp(pow(5.*distfrom, .2), 0., 1.);\n" +
         "    }\n" +
         "    \n" +
@@ -344,8 +345,8 @@ class BookRenderer : GLSurfaceView.Renderer {
         "    {\n" +
         "        if(!clampVec(subUV))\n" +
         "        {\n" +
-        // "            color = texture(iChannel1, subUV).rgb;\n" +
-        "            color = vec3(subUV, 0);\n" +
+        "            color = texture(iChannel1, subUV).rgb;\n" +
+        // "            color = vec3(subUV, 0);\n" +
         "        }\n" +
         "        else\n" +
         "            color = vec3(0);\n" +
@@ -360,6 +361,9 @@ class BookRenderer : GLSurfaceView.Renderer {
 
         // Set the background frame color
         GLES20.glClearColor(0.0f, 0.2f, 0.8f, 1.0f)
+
+        GLES20.glGenTextures(1, mImage, 0)
+        GLES20.glGenTextures(1, mSubImage, 0)
 
         var mVert = GLES20.glCreateShader(GLES20.GL_VERTEX_SHADER)
         if (mVert != 0) {
@@ -443,8 +447,8 @@ class BookRenderer : GLSurfaceView.Renderer {
 
         iResolutionI = GLES20.glGetUniformLocation(mProgram, "iResolution")
         iMouseI = GLES20.glGetUniformLocation(mProgram, "iMouse")
-        // iChannel0I = GLES20.glGetUniformLocation(mProgram, "iChannel0")
-        // iChannel1I = GLES20.glGetUniformLocation(mProgram, "iChannel1")
+        iChannel0I = GLES20.glGetUniformLocation(mProgram, "iChannel0")
+        iChannel1I = GLES20.glGetUniformLocation(mProgram, "iChannel1")
         imageSizeI = GLES20.glGetUniformLocation(mProgram, "mainImageSize")
         subImageSizeI = GLES20.glGetUniformLocation(mProgram, "subImageSize")
     }
@@ -458,12 +462,28 @@ class BookRenderer : GLSurfaceView.Renderer {
         GLES20.glEnableVertexAttribArray(vertsI)
 
         GLES20.glUniform2f(iResolutionI, surfaceWidth.toFloat(), surfaceHeight.toFloat())
-        GLES20.glUniform2f(iMouseI, iMouseX, -iMouseY)
+        GLES20.glUniform2f(iMouseI, iMouseX, surfaceHeight.toFloat() - iMouseY)
         GLES20.glUniform2f(imageSizeI, imageWidth.toFloat(), imageHeight.toFloat())
         GLES20.glUniform2f(subImageSizeI, subImageWidth.toFloat(), subImageHeight.toFloat())
 
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mImage[0])
+        GLES20.glUniform1i(iChannel0I, 0)
+
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE1)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mSubImage[0])
+        GLES20.glUniform1i(iChannel1I, 1)
+
         GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 3)
         // logcat(LogPriority.ERROR) { "${GLES20.glGetError()}" }
+    }
+
+    fun loadTexture(item: Int, image: Bitmap) {
+        when (item) {
+            0 -> GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mImage[0])
+            1 -> GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mImage[1])
+        }
+        GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, image, 0)
     }
 
     override fun onSurfaceChanged(gl: GL10, width: Int, height: Int) {
