@@ -291,7 +291,7 @@ class BookRenderer(contexts: Context) : GLSurfaceView.Renderer {
         "    \n" +
         "    // Normalized pixel coordinates (from 0 to 1)\n" +
         "    vec2 uv = uvmap(fragCoord)*scale1;\n" +
-        "    vec2 mouseuv = vec2(clamp(uvmap(iMouse.xy).x, 0., 10.), clamp(uvmap(iMouse.xy).y, 0., 10.))*scale1;\n" +
+        "    vec2 mouseuv = uvmap(iMouse.xy)*scale1;\n" +
         "    if(distance(mouseuv, topright) > 1.)\n" +
         "    {\n" +
         "        mouseuv = topright + normalize(mouseuv - topright);\n" +
@@ -304,6 +304,15 @@ class BookRenderer(contexts: Context) : GLSurfaceView.Renderer {
         "    vec2 leftmost = midpoint - itlmousevec;\n" +
         "    vec2 rightmost = midpoint + itlmousevec;\n" +
         "    \n" +
+        "    vec2 sIntersects = intersects(leftmost, rightmost, vec2(1., -10.), vec2(1., 10.));\n" +
+        "    \n" +
+        "    if(sIntersects.y > 0. && mouseuv.y > topleft.y)\n" +
+        "    {\n" +
+        "        mouseuv.y -= sIntersects.y;\n" +
+        "        midpoint.y -= sIntersects.y;\n" +
+        "        leftmost.y -= sIntersects.y;\n" +
+        "        rightmost.y -= sIntersects.y;\n" +
+        "    }\n" +
         "\n" +
         "    vec2 intersect = intersects(leftmost, rightmost, uv, uv - tlmousevec);\n" +
         "    \n" +
@@ -320,13 +329,13 @@ class BookRenderer(contexts: Context) : GLSurfaceView.Renderer {
         "    if(clampVec(mirroredpoint))\n" +
         "    {\n" +
         "        color = texture(iChannel0, uv/scale1).rgb;\n" +
-        "        color = vec3(mirroredpoint/scale1, 0);\n" +
-        "        color *=  clamp(pow(5.*distfrom), .1), 0., 1.);\n" +
+        // "        color = vec3(mirroredpoint/scale1, 0);\n" +
+        "        color *=  clamp(pow(5.*distfrom, .1), 0., 1.);\n" +
         "    }\n" +
         "    else\n" +
         "    {\n" +
         "        color = texture(iChannel0, mirroredpoint/scale1).rgb;\n" +
-        "        color = vec3(mirroredpoint/scale1, 0);\n" +
+        // "        color = vec3(mirroredpoint/scale1, 0);\n" +
         "        color *=  clamp(pow(5.*distfrom, .2), 0., 1.);\n" +
         "    }\n" +
         "    \n" +
@@ -455,10 +464,13 @@ class BookRenderer(contexts: Context) : GLSurfaceView.Renderer {
         options.inScaled = false // No pre-scaling
 
         // Read in the resource
-        val bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.splash_icon, options)
+        val bitmap = BitmapFactory.decodeResource(
+            context.resources,
+            R.drawable.updates_grid_widget_preview,
+            options,
+        )
 
         loadTexture(0, bitmap)
-        loadTexture(1, bitmap)
     }
 
     fun drawFrame() {

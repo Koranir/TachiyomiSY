@@ -305,6 +305,7 @@ class ReaderActivity :
         readingModeToast?.cancel()
         progressDialog?.dismiss()
         progressDialog = null
+        logcat { "Destroying ReaderActivity" }
     }
 
     /**
