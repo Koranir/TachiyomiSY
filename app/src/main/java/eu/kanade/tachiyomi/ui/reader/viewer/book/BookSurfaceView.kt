@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.reader.viewer.book
 import android.app.Activity
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.PixelFormat
 import android.opengl.GLES20
@@ -14,6 +15,7 @@ import android.view.View.OnTouchListener
 import android.view.ViewGroup
 import androidx.annotation.NonNull
 import androidx.viewpager.widget.ViewPager
+import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.util.system.logcat
 import logcat.LogPriority
 import java.nio.ByteBuffer
@@ -105,25 +107,14 @@ class BookSurfaceView(context: Context, rtl: Boolean) : GLSurfaceView(context) {
 
         setEGLContextClientVersion(2)
 
-        renderer = BookRenderer()
+        renderer = BookRenderer(context)
 
         setRenderer(renderer)
         renderMode = RENDERMODE_CONTINUOUSLY
     }
 
     fun setImage(item: Int, image: Bitmap) {
-        when (item) {
-            0 -> {
-                renderer.loadTexture(item, image)
-                renderer.imageWidth = image.width
-                renderer.imageHeight = image.height
-            }
-            1 -> {
-                renderer.loadTexture(item, image)
-                renderer.subImageWidth = image.width
-                renderer.subImageHeight = image.height
-            }
-        }
+        renderer.loadTexture(item, image)
     }
 
     override fun onDraw(canvas: Canvas?) {
@@ -150,9 +141,15 @@ class BookSurfaceView(context: Context, rtl: Boolean) : GLSurfaceView(context) {
     }
 }
 
-class BookRenderer : GLSurfaceView.Renderer {
+class BookRenderer(contexts: Context) : GLSurfaceView.Renderer {
     var mProgram = 0
     var vao = 0
+
+    var context: Context
+
+    init {
+        context = contexts
+    }
 
     var iResolutionI = 0
     var iMouseI = 0
@@ -324,7 +321,7 @@ class BookRenderer : GLSurfaceView.Renderer {
         "    {\n" +
         "        color = texture(iChannel0, uv/scale1).rgb;\n" +
         "        color = vec3(mirroredpoint/scale1, 0);\n" +
-        "        color *=  clamp(pow(5.*distfrom, .1), 0., 1.);\n" +
+        "        color *=  clamp(pow(5.*distfrom), .1), 0., 1.);\n" +
         "    }\n" +
         "    else\n" +
         "    {\n" +
@@ -358,6 +355,7 @@ class BookRenderer : GLSurfaceView.Renderer {
 
     override fun onSurfaceCreated(unused: GL10, config: EGLConfig) {
         logcat(message = { "Creating OpenGL Surface" })
+
         mVertices.put(vertices)
 
         // Set the background frame color
@@ -452,6 +450,15 @@ class BookRenderer : GLSurfaceView.Renderer {
         iChannel1I = GLES20.glGetUniformLocation(mProgram, "iChannel1")
         imageSizeI = GLES20.glGetUniformLocation(mProgram, "mainImageSize")
         subImageSizeI = GLES20.glGetUniformLocation(mProgram, "subImageSize")
+
+        val options = BitmapFactory.Options()
+        options.inScaled = false // No pre-scaling
+
+        // Read in the resource
+        val bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.splash_icon, options)
+
+        loadTexture(0, bitmap)
+        loadTexture(1, bitmap)
     }
 
     fun drawFrame() {
@@ -463,7 +470,7 @@ class BookRenderer : GLSurfaceView.Renderer {
         GLES20.glEnableVertexAttribArray(vertsI)
 
         GLES20.glUniform2f(iResolutionI, surfaceWidth.toFloat(), surfaceHeight.toFloat())
-        GLES20.glUniform2f(iMouseI, iMouseX, surfaceHeight.toFloat() - iMouseY)
+        GLES20.glUniform2f(iMouseI, smoothMouseX, surfaceHeight.toFloat() - smoothMouseY)
         GLES20.glUniform2f(imageSizeI, imageWidth.toFloat(), imageHeight.toFloat())
         GLES20.glUniform2f(subImageSizeI, subImageWidth.toFloat(), subImageHeight.toFloat())
 
@@ -480,11 +487,21 @@ class BookRenderer : GLSurfaceView.Renderer {
     }
 
     fun loadTexture(item: Int, image: Bitmap) {
+        logcat(LogPriority.ERROR) { "Tried to load Texture to channel $item" }
         when (item) {
-            0 -> GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mImage[0])
-            1 -> GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mImage[1])
+            0 -> {
+                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mImage[0])
+                GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, image, 0)
+                imageWidth = image.width
+                imageHeight = image.height
+            }
+            1 -> {
+                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mImage[1])
+                GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, image, 0)
+                subImageWidth = image.width
+                subImageHeight = image.height
+            }
         }
-        GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, image, 0)
     }
 
     override fun onSurfaceChanged(gl: GL10, width: Int, height: Int) {
@@ -498,6 +515,20 @@ class BookRenderer : GLSurfaceView.Renderer {
     }
 
     fun resetMouse() {
-        TODO("Not yet implemented")
+        iMouseY = getOffset().second + 1f
+        iMouseX = 1f + getOffset().first
+    }
+
+    fun getOffset(): Pair<Float, Float> {
+        var screenRatio = surfaceWidth.toFloat() / surfaceHeight.toFloat()
+        var imageRatio = imageWidth.toFloat() / imageHeight.toFloat()
+        var imageOffsetX = 0f
+        var imageOffsetY = 0f
+        if (imageRatio > screenRatio) {
+            imageOffsetY = surfaceHeight.toFloat() - (imageHeight.toFloat() * (surfaceWidth.toFloat() / imageWidth.toFloat()))
+        } else {
+            imageOffsetX = surfaceWidth.toFloat() - (imageWidth.toFloat() * (surfaceHeight.toFloat() / imageHeight.toFloat()))
+        }
+        return Pair<Float, Float>(imageOffsetX / 2f, imageOffsetY / 2f)
     }
 }
