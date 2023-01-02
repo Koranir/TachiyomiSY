@@ -81,6 +81,11 @@ open class BookView(activity: Activity, rtl: Boolean) : ViewGroup(activity) {
     fun removeOnPageChangeListener(@NonNull listener: ViewPager.OnPageChangeListener) {
     }
 
+    override fun onDraw(canvas: Canvas?) {
+        super.onDraw(canvas)
+        glView.renderer.drawFrame()
+    }
+
     fun setCurrentItem(item: Int, smoothScroll: Boolean) {
         if (smoothScroll) {
             currentItem = item
@@ -119,6 +124,7 @@ class BookSurfaceView(context: Context, rtl: Boolean) : GLSurfaceView(context) {
 
     override fun onDraw(canvas: Canvas?) {
         super.onDraw(canvas)
+        renderer.drawFrame()
         // renderer.drawFrame()
     }
 
@@ -329,13 +335,13 @@ class BookRenderer(contexts: Context) : GLSurfaceView.Renderer {
         "    if(clampVec(mirroredpoint))\n" +
         "    {\n" +
         "        color = texture(iChannel0, uv/scale1).rgb;\n" +
-        // "        color = vec3(mirroredpoint/scale1, 0);\n" +
+        "        color = vec3(mirroredpoint/scale1, 0);\n" +
         "        color *=  clamp(pow(5.*distfrom, .1), 0., 1.);\n" +
         "    }\n" +
         "    else\n" +
         "    {\n" +
         "        color = texture(iChannel0, mirroredpoint/scale1).rgb;\n" +
-        // "        color = vec3(mirroredpoint/scale1, 0);\n" +
+        "        color = vec3(mirroredpoint/scale1, 0);\n" +
         "        color *=  clamp(pow(5.*distfrom, .2), 0., 1.);\n" +
         "    }\n" +
         "    \n" +
@@ -521,9 +527,13 @@ class BookRenderer(contexts: Context) : GLSurfaceView.Renderer {
     }
 
     override fun onDrawFrame(gl: GL10?) {
-        smoothMouseX = (smoothMouseX + iMouseX) / 2f
-        smoothMouseY = (smoothMouseY + iMouseY) / 2f
+        smoothMouseX = lerp(smoothMouseX, iMouseX, 0.3f)
+        smoothMouseY = lerp(smoothMouseY, iMouseY, 0.3f)
         drawFrame()
+    }
+
+    fun lerp(a: Float, b: Float, t: Float): Float {
+        return a + ((b - a) * t)
     }
 
     fun resetMouse() {
