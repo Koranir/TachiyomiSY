@@ -41,6 +41,9 @@ open class BookView(activity: Activity, rtl: Boolean) : ViewGroup(activity) {
                         glView.renderer.iMouseX = event.x
                         glView.renderer.iMouseY = event.y
                     }
+                    MotionEvent.ACTION_UP -> {
+                        glView.renderer.resetMouse()
+                    }
                 }
                 true
             },
@@ -166,6 +169,9 @@ class BookRenderer : GLSurfaceView.Renderer {
     var iMouseX = 0f //
     var iMouseY = 0f //
 
+    var smoothMouseX = 0f
+    var smoothMouseY = 0f
+
     var imageWidth = 100
     var imageHeight = 141
     var imageLoaded = false
@@ -189,7 +195,7 @@ class BookRenderer : GLSurfaceView.Renderer {
 
     var mVertices: FloatBuffer = ByteBuffer.allocateDirect(vertices.size * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
 
-    val vertCode: String = "# version 320 es\n" +
+    val vertCode: String = "#version 300 es\n" +
         "in vec2 vert;\n" +
         "\n" +
         "out vec2 fragTexCoord;\n" +
@@ -199,35 +205,28 @@ class BookRenderer : GLSurfaceView.Renderer {
         "  fragTexCoord = 0.5 * vert + vec2(0.5);\n" +
         "}\n"
 
-    val fragCode: String = "# version 320 es\n" +
+    val fragCode: String = "#version 300 es\n" +
         "\n" +
         "#define topleft vec2(0., 1./imageRatio)\n" +
         "#define topright vec2(1., 1./imageRatio)\n" +
         "#define bottomright vec2(1., 0.)\n" +
-        "\n" +
         "#define scale1 vec2(1., 1./imageRatio)\n" +
-        "#define scale2 vec2(imageRatio, 1.)\n" +
-        "#define scale3 vec2(1., imageRatio)\n" +
-        "\n" +
         "#define fragCoord (fragTexCoord*iResolution)\n" +
         "\n" +
         "precision mediump float;\n" +
         "\n" +
-        "in vec2 fragTexCoord;\n" +
-        "out vec4 fragColor;\n" +
-        "\n" +
-        "uniform Sampler2D iChannel0;\n" +
-        "uniform Sampler2D iChannel1;\n" +
+        "uniform sampler2D iChannel0;\n" +
+        "uniform sampler2D iChannel1;\n" +
         "uniform vec2 iResolution;\n" +
         "uniform vec2 iMouse;\n" +
         "uniform vec2 subImageSize;\n" +
         "uniform vec2 mainImageSize;\n" +
         "\n" +
+        "in vec2 fragTexCoord;\n" +
+        "out vec4 fragColor;\n" +
+        "\n" +
         "vec2 scaledImageSize;\n" +
         "vec2 imageOffset;\n" +
-        "float scale;\n" +
-        "\n" +
-        "float imageRatio;\n" +
         "\n" +
         "vec2 intersects(vec2 A, vec2 B, vec2 C, vec2 D)\n" +
         "{\n" +
@@ -271,6 +270,8 @@ class BookRenderer : GLSurfaceView.Renderer {
         "\n" +
         "void main()\n" +
         "{\n" +
+        "    float scale;\n" +
+        "    float imageRatio;\n" +
         "    vec3 outp;\n" +
         "    \n" +
         "    float screenRatio = iResolution.x/iResolution.y;\n" +
@@ -322,13 +323,13 @@ class BookRenderer : GLSurfaceView.Renderer {
         "    if(clampVec(mirroredpoint))\n" +
         "    {\n" +
         "        color = texture(iChannel0, uv/scale1).rgb;\n" +
-        // "        color = vec3(mirroredpoint/scale1, 0);\n" +
+        "        color = vec3(mirroredpoint/scale1, 0);\n" +
         "        color *=  clamp(pow(5.*distfrom, .1), 0., 1.);\n" +
         "    }\n" +
         "    else\n" +
         "    {\n" +
         "        color = texture(iChannel0, mirroredpoint/scale1).rgb;\n" +
-        // "        color = vec3(mirroredpoint/scale1, 0);\n" +
+        "        color = vec3(mirroredpoint/scale1, 0);\n" +
         "        color *=  clamp(pow(5.*distfrom, .2), 0., 1.);\n" +
         "    }\n" +
         "    \n" +
@@ -346,7 +347,7 @@ class BookRenderer : GLSurfaceView.Renderer {
         "        if(!clampVec(subUV))\n" +
         "        {\n" +
         "            color = texture(iChannel1, subUV).rgb;\n" +
-        // "            color = vec3(subUV, 0);\n" +
+        "            color = vec3(subUV, 0);\n" +
         "        }\n" +
         "        else\n" +
         "            color = vec3(0);\n" +
@@ -491,6 +492,12 @@ class BookRenderer : GLSurfaceView.Renderer {
     }
 
     override fun onDrawFrame(gl: GL10?) {
+        smoothMouseX = (smoothMouseX + iMouseX) / 2f
+        smoothMouseY = (smoothMouseY + iMouseY) / 2f
         drawFrame()
+    }
+
+    fun resetMouse() {
+        TODO("Not yet implemented")
     }
 }
