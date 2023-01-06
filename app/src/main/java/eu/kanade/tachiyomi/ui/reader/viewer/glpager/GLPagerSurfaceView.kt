@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.ui.reader.viewer.glpager
 import android.content.Context
 import android.view.MotionEvent
 import eu.kanade.tachiyomi.ui.reader.viewer.GestureDetectorWithLongTap
+import eu.kanade.tachiyomi.util.system.logcat
 
 class GLPagerSurfaceView(context: Context) : GLTextureView(context) {
     /**
@@ -10,12 +11,32 @@ class GLPagerSurfaceView(context: Context) : GLTextureView(context) {
      */
     var tapListener: ((MotionEvent) -> Unit)? = null
 
-    var mRenderer = GLPagerRenderer()
+    var mRenderer = GLPagerRenderer(context)
 
     var RTL = false
 
     init {
         setRenderer(mRenderer)
+        setOnTouchListener(
+            OnTouchListener { v, event ->
+                val action = event.action
+                when (action and MotionEvent.ACTION_MASK) {
+                    MotionEvent.ACTION_DOWN -> {
+                        mRenderer.iMouseX = event.x
+                        mRenderer.iMouseY = event.y
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        mRenderer.iMouseX = event.x
+                        mRenderer.iMouseY = event.y
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        mRenderer.resetMouse()
+                        tapListener?.invoke(event)
+                    }
+                }
+                true
+            },
+        )
     }
 
     /**
@@ -27,6 +48,13 @@ class GLPagerSurfaceView(context: Context) : GLTextureView(context) {
             tapListener?.invoke(ev)
         }
         return true
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        logcat(message = { "Size changed for child" })
+        mRenderer.surfaceHeight = h
+        mRenderer.surfaceWidth = w
+        super.onSizeChanged(w, h, oldw, oldh)
     }
 
     /**

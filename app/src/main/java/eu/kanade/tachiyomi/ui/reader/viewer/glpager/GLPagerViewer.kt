@@ -1,12 +1,12 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.glpager
 
+import android.graphics.BitmapFactory.decodeStream
 import android.graphics.PointF
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import eu.kanade.tachiyomi.data.download.DownloadManager
-import eu.kanade.tachiyomi.databinding.ReaderGlpagerBinding
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
@@ -24,11 +24,11 @@ abstract class GLPagerViewer(val activity: ReaderActivity) : BaseViewer {
 
     var viewer = GLPagerSurfaceView(activity)
 
-    private var currentPage: Int? = null
+    private var currentPage: Int = 0
 
     private var currentReaderPage: ReaderPage? = null
 
-    private var maxPage: Int? = null
+    private var maxPage: Int = 0
 
     /**
      * Configuration used by the pager, like allow taps, scale mode on images, page transitions...
@@ -97,14 +97,14 @@ abstract class GLPagerViewer(val activity: ReaderActivity) : BaseViewer {
     open fun update() {}
 
     fun moveLeft() {
-        if (currentPage!! > 0) {
-            currentPage?.minus(1)?.let { setPage(it) }
+        if (currentPage > 0) {
+            setPage(currentPage - 1)
         }
     }
 
     fun moveRight() {
-        if (currentPage!! < maxPage!!) {
-            currentPage?.plus(1)?.let { setPage(it) }
+        if (currentPage < maxPage) {
+            setPage(currentPage + 1)
         }
     }
 
@@ -113,12 +113,14 @@ abstract class GLPagerViewer(val activity: ReaderActivity) : BaseViewer {
     }
 
     override fun setChapters(chapters: ViewerChapters) {
-        maxPage = chapters.currChapter.pages?.size?.minus(1)
+        maxPage = chapters.currChapter.pages?.size?.minus(1)!!
     }
 
     override fun moveToPage(page: ReaderPage) {
-        setPage(page.index)
         currentReaderPage = page
+        setPage(page.index)
+        currentReaderPage!!.stream?.invoke()?.let { viewer.mRenderer.loadTexture(0, decodeStream(it)) }
+
     }
 
     fun setPage(index: Int) {
