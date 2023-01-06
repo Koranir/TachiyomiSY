@@ -5,8 +5,8 @@ import androidx.annotation.StringRes
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.ui.reader.viewer.BaseViewer
-import eu.kanade.tachiyomi.ui.reader.viewer.book.L2RBookViewer
-import eu.kanade.tachiyomi.ui.reader.viewer.book.R2LBookViewer
+import eu.kanade.tachiyomi.ui.reader.viewer.glpager.L2RGLPagerViewer
+import eu.kanade.tachiyomi.ui.reader.viewer.glpager.R2LGLPagerViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.L2RPagerViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.R2LPagerViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.VerticalPagerViewer
@@ -61,8 +61,8 @@ enum class ReadingModeType(val prefValue: Int, @StringRes val stringRes: Int, @D
                 VERTICAL -> VerticalPagerViewer(activity)
                 WEBTOON -> WebtoonViewer(activity)
                 CONTINUOUS_VERTICAL -> WebtoonViewer(activity, isContinuous = false)
-                RIGHT_TO_LEFT_BOOK -> R2LBookViewer(activity)
-                LEFT_TO_RIGHT_BOOK -> L2RBookViewer(activity)
+                RIGHT_TO_LEFT_BOOK -> R2LGLPagerViewer(activity)
+                LEFT_TO_RIGHT_BOOK -> L2RGLPagerViewer(activity)
                 DEFAULT -> throw IllegalStateException("Preference value must be resolved: $preference")
             }
         }

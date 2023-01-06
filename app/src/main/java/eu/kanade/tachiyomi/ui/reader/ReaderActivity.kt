@@ -82,6 +82,7 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReaderSettingsSheet
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingModeType
 import eu.kanade.tachiyomi.ui.reader.viewer.BaseViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
+import eu.kanade.tachiyomi.ui.reader.viewer.glpager.R2LGLPagerViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.PagerConfig
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.PagerViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.R2LPagerViewer
@@ -533,7 +534,7 @@ class ReaderActivity :
         listOf(binding.leftChapter, binding.aboveChapter).forEach {
             it.setOnClickListener {
                 if (viewer != null) {
-                    if (viewer is R2LPagerViewer) {
+                    if (viewer is R2LPagerViewer || viewer is R2LGLPagerViewer) {
                         loadNextChapter()
                     } else {
                         loadPreviousChapter()
@@ -544,7 +545,7 @@ class ReaderActivity :
         listOf(binding.rightChapter, binding.belowChapter).forEach {
             it.setOnClickListener {
                 if (viewer != null) {
-                    if (viewer is R2LPagerViewer) {
+                    if (viewer is R2LPagerViewer || viewer is R2LGLPagerViewer) {
                         loadPreviousChapter()
                     } else {
                         loadNextChapter()
@@ -1151,8 +1152,8 @@ class ReaderActivity :
         // SY <--
         binding.toolbar.title = manga.title
 
-        binding.pageSlider.isRTL = newViewer is R2LPagerViewer
-        if (newViewer is R2LPagerViewer) {
+        binding.pageSlider.isRTL = newViewer is R2LPagerViewer || newViewer is R2LGLPagerViewer
+        if (newViewer is R2LPagerViewer || newViewer is R2LGLPagerViewer) {
             binding.leftChapter.setTooltip(R.string.action_next_chapter)
             binding.rightChapter.setTooltip(R.string.action_previous_chapter)
         } else {
@@ -1225,8 +1226,8 @@ class ReaderActivity :
         binding.readerSeekbar.isInvisible = currentChapterPageCount == 1
         binding.readerSeekbarVert.isInvisible = currentChapterPageCount == 1
 
-        val leftChapterObject = if (viewer is R2LPagerViewer) viewerChapters.nextChapter else viewerChapters.prevChapter
-        val rightChapterObject = if (viewer is R2LPagerViewer) viewerChapters.prevChapter else viewerChapters.nextChapter
+        val leftChapterObject = if (viewer is R2LPagerViewer || viewer is R2LGLPagerViewer) viewerChapters.nextChapter else viewerChapters.prevChapter
+        val rightChapterObject = if (viewer is R2LPagerViewer || viewer is R2LGLPagerViewer) viewerChapters.prevChapter else viewerChapters.nextChapter
 
         if (leftChapterObject == null && rightChapterObject == null) {
             binding.leftChapter.isVisible = false
@@ -1325,7 +1326,7 @@ class ReaderActivity :
         // binding.pageText.text = "${page.number}/${pages.size}"
 
         // Set page numbers
-        if (viewer !is R2LPagerViewer) {
+        if (viewer !is R2LPagerViewer || viewer !is R2LGLPagerViewer) {
             binding.leftPageText.text = currentPage
             binding.rightPageText.text = "${pages.size}"
         } else {
@@ -1356,13 +1357,13 @@ class ReaderActivity :
     fun onPageLongTap(page: ReaderPage, extraPage: ReaderPage? = null) {
         // SY -->
         try {
-            val viewer = viewer as? PagerViewer
+            val pageviewer = viewer as? PagerViewer
             ReaderPageSheet(
                 this,
                 page,
                 extraPage,
-                (viewer !is R2LPagerViewer) xor (viewer?.config?.invertDoublePages ?: false),
-                viewer?.config?.pageCanvasColor,
+                ((pageviewer !is R2LPagerViewer) xor (pageviewer?.config?.invertDoublePages ?: false)) || viewer !is R2LGLPagerViewer,
+                pageviewer?.config?.pageCanvasColor,
             ).show()
         } catch (e: WindowManager.BadTokenException) {
             xLogE("Caught and ignoring reader page sheet launch exception!", e)
