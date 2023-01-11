@@ -231,7 +231,7 @@ class GLPagerRenderer(val context: Context) : GLSurfaceView.Renderer {
         "        if(!clampVec(subUV))\n" +
         "        {\n" +
         "            color = texture(iChannel1, subUV).rgb;\n" +
-        "            if (uv > 0.5) {\n" +
+        "            if (uv.x > 0.5) {\n" +
         "               color = vec3(subUV, 0);\n" +
         "            }\n" +
         "        }\n" +
