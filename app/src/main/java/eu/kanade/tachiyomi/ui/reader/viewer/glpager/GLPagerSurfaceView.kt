@@ -5,13 +5,13 @@ import android.view.MotionEvent
 import eu.kanade.tachiyomi.ui.reader.viewer.GestureDetectorWithLongTap
 import eu.kanade.tachiyomi.util.system.logcat
 
-class GLPagerSurfaceView(context: Context) : GLTextureView(context) {
+class GLPagerSurfaceView(val scontext: Context) : GLTextureView(scontext) {
     /**
      * Tap listener function to execute when a tap is detected.
      */
     var tapListener: ((MotionEvent) -> Unit)? = null
 
-    var mRenderer = GLPagerRenderer(context)
+    var mRenderer = GLPagerRenderer(scontext)
 
     var RTL = false
 

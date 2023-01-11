@@ -1,85 +1,141 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.glpager
 
 import android.content.Context
-import androidx.core.view.isVisible
+import android.graphics.Bitmap
+import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
-import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView
-import eu.kanade.tachiyomi.ui.reader.viewer.pager.PagerViewer
-import eu.kanade.tachiyomi.util.system.ImageUtil
+import eu.kanade.tachiyomi.util.system.logcat
 import rx.Observable
 import rx.Subscription
 import rx.android.schedulers.AndroidSchedulers
-import rx.schedulers.Schedulers
 import java.io.ByteArrayInputStream
+import java.util.concurrent.TimeUnit
 
-class GLPageImageHolder (
+class GLPageImageHolder(
     readerThemedContext: Context,
-    val viewer: PagerViewer,
+    val viewer: GLPagerViewer,
     val page: ReaderPage,
-    ){
+    private var extraPage: ReaderPage? = null,
+) {
 
     var isLoading = true
     var isError = false
 
     /**
-     * Subscription used to read the header of the image. This is needed in order to instantiate
-     * the appropiate image view depending if the image is animated (GIF).
+     * Subscription for status changes of the page.
      */
-    private var readImageHeaderSubscription: Subscription? = null
+    private var statusSubscription: Subscription? = null
 
+    /**
+     * Subscription for progress changes of the page.
+     */
+    private var progressSubscription: Subscription? = null
 
-    fun setImage() {
-        isLoading = false
-        isError = false
+    /**
+     * Subscription for status changes of the page.
+     */
+    private var extraStatusSubscription: Subscription? = null
 
-        unsubscribeReadImageHeader()
-        val streamFn = page.stream ?: return
+    /**
+     * Subscription for progress changes of the page.
+     */
+    private var extraProgressSubscription: Subscription? = null
 
-        readImageHeaderSubscription = Observable
-            .fromCallable {
-                val stream = streamFn().buffered(16)
-                // SY <--
-                val bais = ByteArrayInputStream(stream.readBytes())
-                try {
-                    val isAnimated = ImageUtil.isAnimatedAndSupported(bais)
-                    bais.reset()
-                    val background = if (!isAnimated && viewer.config.automaticBackground) {
-                        ImageUtil.chooseBackground(viewer.getView().context, bais)
-                    } else {
-                        null
-                    }
-                    bais.reset()
-                    Triple(bais, isAnimated, background)
-                } finally {
-                    stream.close()
-                }
-            }
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .doOnNext { (bais, isAnimated, background) ->
-                bais.use {
-                    setImage(
-                        it,
-                    )
-                    if (!isAnimated) {
-                        pageBackground = background
-                    }
-                }
-            }
-            .subscribe({}, {})
+    lateinit var decoder: SmallBitmapDecoder
+
+    private var bitmap: Bitmap? = null
+
+    // SY -->
+    var status: Int = 0
+    var extraStatus: Int = 0
+    var progress: Int = 0
+    var extraProgress: Int = 0
+    // SY <--
+
+    var temvar: Int = 0
+
+    init {
+        logcat { "Created page holder for ${page.index}" }
+        observeStatus()
     }
 
-    fun setImage(stream: ByteArrayInputStream) {
-
+    fun getImage(): Bitmap? {
+        logcat { "Bitmap size $bitmap, ${bitmap?.width}, ${bitmap?.height}" }
+        return bitmap
     }
 
     /**
-     * Unsubscribes from the status subscription.
+     * Observes the progress of the page and updates view.
      */
-    private fun unsubscribeStatus(page: Int) {
-        val subscription = if (page == 1) statusSubscription else extraStatusSubscription
-        subscription?.unsubscribe()
-        if (page == 1) statusSubscription = null else extraStatusSubscription = null
+    private fun observeProgress() {
+        progressSubscription?.unsubscribe()
+
+        progressSubscription = Observable.interval(100, TimeUnit.MILLISECONDS)
+            .map { page.progress }
+            .distinctUntilChanged()
+            .onBackpressureLatest()
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe { value -> temvar = value }
+    }
+
+    /**
+     * Observes the status of the page and notify the changes.
+     *
+     * @see processStatus
+     */
+    private fun observeStatus() {
+        statusSubscription?.unsubscribe()
+
+        val loader = page.chapter.pageLoader ?: return
+        statusSubscription = loader.getPage(page)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe {
+                status = it
+                processStatus(it)
+            }
+
+        val extraPage = extraPage ?: return
+        val loader2 = extraPage.chapter.pageLoader ?: return
+        extraStatusSubscription = loader2.getPage(extraPage)
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe {
+                extraStatus = it
+                // processStatus2(it)
+            }
+    }
+
+    /**
+     * Called when the status of the page changes.
+     *
+     * @param status the new status of the page.
+     */
+    private fun processStatus(status: Int) {
+        when (status) {
+            // Page.QUEUE -> //setQueued()
+            // Page.LOAD_PAGE -> //setLoading()
+            Page.DOWNLOAD_IMAGE -> {
+                observeProgress()
+                // setDownloading()
+            }
+            Page.READY -> {
+                logcat { "Page ${page.index} ready" }
+                if (extraStatus == Page.READY || extraPage == null) {
+                    val streamFn = page.stream ?: return
+                    val stream = streamFn().buffered(16)
+                    val bais = ByteArrayInputStream(stream.readBytes())
+                    decoder = SmallBitmapDecoder(bais)
+                    bitmap = decoder.getBitmap()
+                    if (viewer.currentPage == page.index) {
+                        bitmap?.let { viewer.viewer.mRenderer.loadTexture(0, it) }
+                    }
+                }
+                unsubscribeProgress(1)
+            }
+            // Page.ERROR -> {
+            // setError()
+            // unsubscribeProgress(1)
+            // }
+        }
     }
 
     /**
@@ -89,13 +145,5 @@ class GLPageImageHolder (
         val subscription = if (page == 1) progressSubscription else extraProgressSubscription
         subscription?.unsubscribe()
         if (page == 1) progressSubscription = null else extraProgressSubscription = null
-    }
-
-    /**
-     * Unsubscribes from the read image header subscription.
-     */
-    private fun unsubscribeReadImageHeader() {
-        readImageHeaderSubscription?.unsubscribe()
-        readImageHeaderSubscription = null
     }
 }

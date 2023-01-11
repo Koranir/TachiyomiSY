@@ -1,19 +1,23 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.glpager
 
-import android.graphics.BitmapFactory.decodeStream
 import android.graphics.PointF
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import androidx.core.view.isGone
+import androidx.core.view.isVisible
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
+import eu.kanade.tachiyomi.ui.reader.model.ChapterTransition
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import eu.kanade.tachiyomi.ui.reader.viewer.BaseViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.ViewerNavigation
+import eu.kanade.tachiyomi.util.system.logcat
 import kotlinx.coroutines.MainScope
 import uy.kohesive.injekt.injectLazy
+import kotlin.math.min
 
 @Suppress("LeakingThis")
 abstract class GLPagerViewer(val activity: ReaderActivity) : BaseViewer {
@@ -24,31 +28,23 @@ abstract class GLPagerViewer(val activity: ReaderActivity) : BaseViewer {
 
     var viewer = GLPagerSurfaceView(activity)
 
-    private var currentPage: Int = 0
-
-    private var currentReaderPage: ReaderPage? = null
-
-    private var maxPage: Int = 0
-
     /**
      * Configuration used by the pager, like allow taps, scale mode on images, page transitions...
      */
     val config = GLPagerConfig(this, scope)
 
+    val adapter = GLPagerAdapter(this)
+
+    var currentPage: Int = 0
+        private set
+
+    private var currentReaderPage: ReaderPage? = null
+
+    private var maxPage: Int = 0
+
     init {
         update()
-        /*pager.isVisible = false // Don't layout the pager yet
-        pager.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT)
-        pager.isFocusable = false
-        pager.offscreenPageLimit = 1
-        pager.id = R.id.reader_pager
-        pager.adapter = adapter
-        pager.addOnPageChangeListener(
-            // SY -->
-            pagerListener,
-            // SY <--
-        )*/
+
         viewer.tapListener = { event ->
             val pos = PointF(event.rawX / viewer.width, event.rawY / viewer.height)
             val navigator = config.navigator
@@ -103,7 +99,7 @@ abstract class GLPagerViewer(val activity: ReaderActivity) : BaseViewer {
     }
 
     fun moveRight() {
-        if (currentPage < maxPage) {
+        if (currentPage <= maxPage) {
             setPage(currentPage + 1)
         }
     }
@@ -118,14 +114,34 @@ abstract class GLPagerViewer(val activity: ReaderActivity) : BaseViewer {
 
     override fun moveToPage(page: ReaderPage) {
         currentReaderPage = page
-        setPage(page.index)
-        currentReaderPage!!.stream?.invoke()?.let { viewer.mRenderer.loadTexture(0, decodeStream(it)) }
-
+        val position = adapter.joinedItems.indexOfFirst { it.first == page || it.second == page }
+        logcat { "moveToPage ${page.number}, index: $position" }
+        setPage(position)
+        if (position != -1) {
+            val currentPosition = currentPage
+            currentPage = position
+            // manually call onPageChange since ViewPager listener is not triggered in this case
+            if (currentPosition == position) {
+            } else {
+                // Call this since with double shift onPageChange wont get called (it shouldn't)
+                // Instead just update the page count in ui
+                val joinedItem = adapter.joinedItems.firstOrNull { it.first == page || it.second == page }
+                activity.onPageSelected(
+                    joinedItem?.first as? ReaderPage ?: page,
+                    joinedItem?.second != null,
+                )
+            }
+        } else {
+            logcat { "Page $page not found in adapter" }
+        }
     }
 
     fun setPage(index: Int) {
+        logcat { "SetPage $currentPage" }
+        adapter.getPageHolder(currentPage)?.getImage()?.let { viewer.mRenderer.loadTexture(0, it) }
         currentPage = index
         currentReaderPage?.let { activity.onPageSelected(it) }
+        // currentReaderPage?.stream?.invoke()?.let { viewer.mRenderer.loadTexture(0, decodeStream(it)) }
     }
 
     /**
@@ -218,4 +234,43 @@ abstract class GLPagerViewer(val activity: ReaderActivity) : BaseViewer {
     protected open fun moveDown() {
         moveToNext()
     }
+
+    /**
+     * Sets the active [chapters] on this pager.
+     */
+    private fun setChaptersInternal(chapters: ViewerChapters) {
+        logcat { "setChaptersInternal" }
+        val forceTransition = config.alwaysShowChapterTransition || adapter.joinedItems.getOrNull(currentPage)?.first is ChapterTransition
+        adapter.setChapters(chapters, forceTransition)
+
+        // Layout the pager once a chapter is being set
+        if (viewer.isGone) {
+            logcat { "Pager first layout" }
+            val pages = chapters.currChapter.pages ?: return
+            moveToPage(pages[min(chapters.currChapter.requestedPage, pages.lastIndex)])
+            viewer.isVisible = true
+        }
+    }
+
+    // SY -->
+    fun setChaptersDoubleShift(chapters: ViewerChapters) {
+        // Remove Listener since we're about to change the size of the items
+        // If we don't the size change could put us on a new chapter
+        // pager.removeOnPageChangeListener(pagerListener)
+        setChaptersInternal(chapters)
+        // pager.addOnPageChangeListener(pagerListener)
+        // Since we removed the listener while shifting, call page change to update the ui
+        currentReaderPage?.let { moveToPage(it) }
+    }
+
+    fun updateShifting(page: ReaderPage? = null) {
+        adapter.pageToShift = page ?: adapter.joinedItems.getOrNull(currentPage)?.first as? ReaderPage
+    }
+
+    fun splitDoublePages(currentPage: ReaderPage) {
+        adapter.splitDoublePages(currentPage)
+    }
+
+    fun getShiftedPage(): ReaderPage? = adapter.pageToShift
+    // SY <--
 }

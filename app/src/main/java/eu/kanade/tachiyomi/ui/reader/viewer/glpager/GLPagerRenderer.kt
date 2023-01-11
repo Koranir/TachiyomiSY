@@ -2,11 +2,9 @@ package eu.kanade.tachiyomi.ui.reader.viewer.glpager
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.opengl.GLES20
+import android.opengl.GLES30
 import android.opengl.GLSurfaceView
 import android.opengl.GLUtils
-import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.util.system.logcat
 import logcat.LogPriority
 import java.nio.ByteBuffer
@@ -15,15 +13,9 @@ import java.nio.FloatBuffer
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
-class GLPagerRenderer(contexts: Context) : GLSurfaceView.Renderer {
+class GLPagerRenderer(val context: Context) : GLSurfaceView.Renderer {
     var mProgram = 0
     var vao = 0
-
-    var context: Context
-
-    init {
-        context = contexts
-    }
 
     var iResolutionI = 0
     var iMouseI = 0
@@ -47,11 +39,13 @@ class GLPagerRenderer(contexts: Context) : GLSurfaceView.Renderer {
     var imageHeight = 141
     var imageLoaded = false
     var mImage = IntArray(1)
+    var mImageBitmap: Bitmap? = null
 
     var subImageWidth = 100
     var subImageHeight = 141
     var subImageLoaded = false
     var mSubImage = IntArray(1)
+    var mSubImageBitmap: Bitmap? = null
 
     var vertsI = 0
 
@@ -209,13 +203,17 @@ class GLPagerRenderer(contexts: Context) : GLSurfaceView.Renderer {
         "    if(clampVec(mirroredpoint))\n" +
         "    {\n" +
         "        color = texture(iChannel0, uv/scale1).rgb;\n" +
-        // "        color = vec3(mirroredpoint/scale1, 0);\n" +
+        "        if (uv.x > 0.5) {\n" +
+        "           color = vec3(mirroredpoint/scale1, 0);\n" +
+        "        }\n" +
         "        color *=  clamp(pow(5.*distfrom, .1), 0., 1.);\n" +
         "    }\n" +
         "    else\n" +
         "    {\n" +
         "        color = texture(iChannel0, mirroredpoint/scale1).rgb;\n" +
-        // "        color = vec3(mirroredpoint/scale1, 0);\n" +
+        "        if (uv.x > 0.5) {\n" +
+        "           color = vec3(mirroredpoint/scale1, 0);\n" +
+        "        }\n" +
         "        color *=  clamp(pow(5.*distfrom, .2), 0., 1.);\n" +
         "    }\n" +
         "    \n" +
@@ -233,7 +231,9 @@ class GLPagerRenderer(contexts: Context) : GLSurfaceView.Renderer {
         "        if(!clampVec(subUV))\n" +
         "        {\n" +
         "            color = texture(iChannel1, subUV).rgb;\n" +
-        // "            color = vec3(subUV, 0);\n" +
+        "            if (uv > 0.5) {\n" +
+        "               color = vec3(subUV, 0);\n" +
+        "            }\n" +
         "        }\n" +
         "        else\n" +
         "            color = vec3(0);\n" +
@@ -243,50 +243,50 @@ class GLPagerRenderer(contexts: Context) : GLSurfaceView.Renderer {
         "}"
 
     override fun onSurfaceCreated(unused: GL10, config: EGLConfig) {
-        logcat(message = { "Creating OpenGL Surface" })
+        logcat(message = { "Creating OpenGL Surface with context $context" })
 
         mVertices.put(vertices)
 
         // Set the background frame color
-        GLES20.glClearColor(0.0f, 0.2f, 0.8f, 1.0f)
+        GLES30.glClearColor(0.0f, 0.2f, 0.8f, 1.0f)
 
-        GLES20.glGenTextures(1, mImage, 0)
-        GLES20.glGenTextures(1, mSubImage, 0)
+        GLES30.glGenTextures(1, mImage, 0)
+        GLES30.glGenTextures(1, mSubImage, 0)
 
-        var mVert = GLES20.glCreateShader(GLES20.GL_VERTEX_SHADER)
+        var mVert = GLES30.glCreateShader(GLES30.GL_VERTEX_SHADER)
         if (mVert != 0) {
-            GLES20.glShaderSource(mVert, vertCode)
+            GLES30.glShaderSource(mVert, vertCode)
 
-            GLES20.glCompileShader(mVert)
+            GLES30.glCompileShader(mVert)
 
             // Get the compilation status.
             val compileStatus = IntArray(1)
-            GLES20.glGetShaderiv(mVert, GLES20.GL_COMPILE_STATUS, compileStatus, 0)
+            GLES30.glGetShaderiv(mVert, GLES30.GL_COMPILE_STATUS, compileStatus, 0)
 
             // If the compilation failed, delete the shader.
             if (compileStatus[0] == 0) {
-                logcat(LogPriority.ERROR) { "Vertex Shader Compilation Failed ${GLES20.glGetShaderInfoLog(mVert)}" }
-                GLES20.glDeleteShader(mVert)
+                logcat(LogPriority.ERROR) { "Vertex Shader Compilation Failed ${GLES30.glGetShaderInfoLog(mVert)}" }
+                GLES30.glDeleteShader(mVert)
                 mVert = 0
             }
         } else {
             logcat(LogPriority.ERROR) { "Vertex Shader Creation Failed" }
         }
 
-        var mFrag = GLES20.glCreateShader(GLES20.GL_FRAGMENT_SHADER)
+        var mFrag = GLES30.glCreateShader(GLES30.GL_FRAGMENT_SHADER)
         if (mFrag != 0) {
-            GLES20.glShaderSource(mFrag, fragCode)
+            GLES30.glShaderSource(mFrag, fragCode)
 
-            GLES20.glCompileShader(mFrag)
+            GLES30.glCompileShader(mFrag)
 
             // Get the compilation status.
             val compileStatus = IntArray(1)
-            GLES20.glGetShaderiv(mFrag, GLES20.GL_COMPILE_STATUS, compileStatus, 0)
+            GLES30.glGetShaderiv(mFrag, GLES30.GL_COMPILE_STATUS, compileStatus, 0)
 
             // If the compilation failed, delete the shader.
             if (compileStatus[0] == 0) {
-                logcat(LogPriority.ERROR) { "Fragment Shader Compilation Failed ${GLES20.glGetShaderInfoLog(mFrag)}" }
-                GLES20.glDeleteShader(mFrag)
+                logcat(LogPriority.ERROR) { "Fragment Shader Compilation Failed ${GLES30.glGetShaderInfoLog(mFrag)}" }
+                GLES30.glDeleteShader(mFrag)
                 mFrag = 0
             }
         } else {
@@ -297,119 +297,111 @@ class GLPagerRenderer(contexts: Context) : GLSurfaceView.Renderer {
             logcat(LogPriority.ERROR) { "Missing compiled shader" }
         }
 
-        mProgram = GLES20.glCreateProgram()
+        mProgram = GLES30.glCreateProgram()
 
         if (mProgram != 0) {
             // Bind the vertex shader to the program.
-            GLES20.glAttachShader(mProgram, mVert)
+            GLES30.glAttachShader(mProgram, mVert)
 
             // Bind the fragment shader to the program.
-            GLES20.glAttachShader(mProgram, mFrag)
+            GLES30.glAttachShader(mProgram, mFrag)
 
-            GLES20.glBindAttribLocation(mProgram, 0, "vert")
-            GLES20.glBindAttribLocation(mProgram, 1, "fragCoord")
+            GLES30.glBindAttribLocation(mProgram, 0, "vert")
+            GLES30.glBindAttribLocation(mProgram, 1, "fragCoord")
 
             // Link the two shaders together into a program.
-            GLES20.glLinkProgram(mProgram)
+            GLES30.glLinkProgram(mProgram)
 
             // var status: IntBuffer = IntBuffer.allocate(1)
-            // GLES20.glGetProgramiv(mProgram, GLES20.GL_LINK_STATUS, status)
-            logcat(LogPriority.ERROR) { "Drew frame ${GLES20.glGetProgramInfoLog(mProgram)}" }
+            // GLES30.glGetProgramiv(mProgram, GLES30.GL_LINK_STATUS, status)
+            logcat(LogPriority.ERROR) { "Drew frame ${GLES30.glGetProgramInfoLog(mProgram)}" }
 
-            GLES20.glDetachShader(mProgram, mVert)
-            GLES20.glDetachShader(mProgram, mFrag)
+            GLES30.glDetachShader(mProgram, mVert)
+            GLES30.glDetachShader(mProgram, mFrag)
 
             // Get the link status.
             val linkStatus = IntArray(1)
-            GLES20.glGetProgramiv(mProgram, GLES20.GL_LINK_STATUS, linkStatus, 0)
+            GLES30.glGetProgramiv(mProgram, GLES30.GL_LINK_STATUS, linkStatus, 0)
 
             // If the link failed, delete the program.
             if (linkStatus[0] == 0) {
-                logcat(LogPriority.ERROR) { "Drew frame ${GLES20.glGetError()}" }
-                GLES20.glDeleteProgram(mProgram)
+                logcat(LogPriority.ERROR) { "Drew frame ${GLES30.glGetError()}" }
+                GLES30.glDeleteProgram(mProgram)
                 mProgram = 0
             }
         }
 
-        vertsI = GLES20.glGetAttribLocation(mProgram, "vert")
+        vertsI = GLES30.glGetAttribLocation(mProgram, "vert")
 
-        iResolutionI = GLES20.glGetUniformLocation(mProgram, "iResolution")
-        iMouseI = GLES20.glGetUniformLocation(mProgram, "iMouse")
-        iChannel0I = GLES20.glGetUniformLocation(mProgram, "iChannel0")
-        iChannel1I = GLES20.glGetUniformLocation(mProgram, "iChannel1")
-        imageSizeI = GLES20.glGetUniformLocation(mProgram, "mainImageSize")
-        subImageSizeI = GLES20.glGetUniformLocation(mProgram, "subImageSize")
+        iResolutionI = GLES30.glGetUniformLocation(mProgram, "iResolution")
+        iMouseI = GLES30.glGetUniformLocation(mProgram, "iMouse")
+        iChannel0I = GLES30.glGetUniformLocation(mProgram, "iChannel0")
+        iChannel1I = GLES30.glGetUniformLocation(mProgram, "iChannel1")
+        imageSizeI = GLES30.glGetUniformLocation(mProgram, "mainImageSize")
+        subImageSizeI = GLES30.glGetUniformLocation(mProgram, "subImageSize")
 
-        val options = BitmapFactory.Options()
-        options.inScaled = false // No pre-scaling
+        GLES30.glGenTextures(1, mImage, 0)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, mImage[0])
+        logcat { "Binded textures textures" }
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_REPEAT)
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_REPEAT)
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_LINEAR_MIPMAP_LINEAR)
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_LINEAR)
 
-        // Read in the resource
-        val bitmap = BitmapFactory.decodeResource(
-            context.resources,
-            R.drawable.updates_grid_widget_preview,
-            options,
-        )
-
-        loadTexture(1, bitmap)
+        GLES30.glGenTextures(1, mSubImage, 0)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, mSubImage[0])
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_REPEAT)
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_REPEAT)
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_LINEAR_MIPMAP_LINEAR)
+        GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_LINEAR)
     }
 
     fun drawFrame() {
         // Redraw background color
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
-        GLES20.glUseProgram(mProgram)
+        GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
+        GLES30.glUseProgram(mProgram)
         mVertices.position(0)
-        GLES20.glVertexAttribPointer(vertsI, 3, GLES20.GL_FLOAT, false, 2 * 4, mVertices)
-        GLES20.glEnableVertexAttribArray(vertsI)
+        GLES30.glVertexAttribPointer(vertsI, 3, GLES30.GL_FLOAT, false, 2 * 4, mVertices)
+        GLES30.glEnableVertexAttribArray(vertsI)
 
-        GLES20.glUniform2f(iResolutionI, surfaceWidth.toFloat(), surfaceHeight.toFloat())
-        GLES20.glUniform2f(iMouseI, smoothMouseX, surfaceHeight.toFloat() - smoothMouseY)
-        GLES20.glUniform2f(imageSizeI, imageWidth.toFloat(), imageHeight.toFloat())
-        GLES20.glUniform2f(subImageSizeI, subImageWidth.toFloat(), subImageHeight.toFloat())
+        GLES30.glUniform2f(iResolutionI, surfaceWidth.toFloat(), surfaceHeight.toFloat())
+        GLES30.glUniform2f(iMouseI, smoothMouseX, surfaceHeight.toFloat() - smoothMouseY)
+        GLES30.glUniform2f(imageSizeI, imageWidth.toFloat(), imageHeight.toFloat())
+        GLES30.glUniform2f(subImageSizeI, subImageWidth.toFloat(), subImageHeight.toFloat())
 
-        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mImage[0])
-        GLES20.glUniform1i(iChannel0I, 0)
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, mImage[0])
+        mImageBitmap?.let { GLUtils.texImage2D(GLES30.GL_TEXTURE_2D, 0, it, 0) }
+        GLES30.glUniform1i(iChannel0I, 0)
 
-        GLES20.glActiveTexture(GLES20.GL_TEXTURE1)
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mSubImage[0])
-        GLES20.glUniform1i(iChannel1I, 1)
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE1)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, mSubImage[0])
+        mSubImageBitmap?.let { GLUtils.texImage2D(GLES30.GL_TEXTURE_2D, 0, it, 0) }
+        GLES30.glUniform1i(iChannel1I, 1)
 
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 3)
-        // logcat(LogPriority.ERROR) { "${GLES20.glGetError()}" }
+        GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, 3)
+        // logcat(LogPriority.ERROR) { "${GLES30.glGetError()}" }
     }
 
     fun loadTexture(item: Int, image: Bitmap) {
         logcat(LogPriority.ERROR) { "Tried to load Texture to channel $item" }
         when (item) {
             0 -> {
-                GLES20.glDeleteTextures(1, mImage, 0)
-                GLES20.glGenTextures(1, mImage, 0)
-                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mImage[0])
-                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_REPEAT)
-                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_REPEAT)
-                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR_MIPMAP_LINEAR)
-                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
-                GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, image, 0)
+                mImageBitmap = image
                 imageWidth = image.width
                 imageHeight = image.height
             }
             1 -> {
-                GLES20.glDeleteTextures(1, mSubImage, 0)
-                GLES20.glGenTextures(1, mSubImage, 0)
-                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mSubImage[0])
-                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_REPEAT)
-                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_REPEAT)
-                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR_MIPMAP_LINEAR)
-                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
-                GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, image, 0)
+                mSubImageBitmap = image
                 subImageWidth = image.width
                 subImageHeight = image.height
             }
         }
+        logcat { "GLError: ${GLES30.glGetError()} (zero is normal)" }
     }
 
     override fun onSurfaceChanged(gl: GL10, width: Int, height: Int) {
-        GLES20.glViewport(0, 0, width, height)
+        GLES30.glViewport(0, 0, width, height)
     }
 
     override fun onDrawFrame(gl: GL10?) {

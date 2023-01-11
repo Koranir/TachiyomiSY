@@ -82,6 +82,7 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReaderSettingsSheet
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingModeType
 import eu.kanade.tachiyomi.ui.reader.viewer.BaseViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
+import eu.kanade.tachiyomi.ui.reader.viewer.glpager.GLPagerViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.glpager.R2LGLPagerViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.PagerConfig
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.PagerViewer
@@ -919,29 +920,60 @@ class ReaderActivity :
     }
 
     fun reloadChapters(doublePages: Boolean, force: Boolean = false) {
-        val pViewer = viewer as? PagerViewer ?: return
-        pViewer.updateShifting()
-        if (!force && pViewer.config.autoDoublePages) {
-            setDoublePageMode(pViewer)
-        } else {
-            pViewer.config.doublePages = doublePages
-        }
-        val currentChapter = presenter.getCurrentChapter()
-        if (doublePages) {
-            // If we're moving from singe to double, we want the current page to be the first page
-            pViewer.config.shiftDoublePage = (
-                binding.pageSlider.value.floor() +
-                    (currentChapter?.pages?.take(binding.pageSlider.value.floor())?.count { it.fullPage || it.isolatedPage } ?: 0)
-                ) % 2 != 0
-        }
-        presenter.viewerChaptersRelay.value?.let {
-            pViewer.setChaptersDoubleShift(it)
+        val pViewer = viewer as? PagerViewer ?: viewer as? GLPagerViewer ?: return
+        if (pViewer is PagerViewer) {
+            pViewer.updateShifting()
+            if (!force && pViewer.config.autoDoublePages) {
+                setDoublePageMode(pViewer)
+            } else {
+                pViewer.config.doublePages = doublePages
+            }
+            val currentChapter = presenter.getCurrentChapter()
+            if (doublePages) {
+                // If we're moving from single to double, we want the current page to be the first page
+                pViewer.config.shiftDoublePage = (
+                    binding.pageSlider.value.floor() +
+                        (
+                            currentChapter?.pages?.take(binding.pageSlider.value.floor())
+                                ?.count { it.fullPage || it.isolatedPage } ?: 0
+                            )
+                    ) % 2 != 0
+            }
+            presenter.viewerChaptersRelay.value?.let {
+                pViewer.setChaptersDoubleShift(it)
+            }
+        } else if (pViewer is GLPagerViewer) {
+            pViewer.updateShifting()
+            if (!force && pViewer.config.autoDoublePages) {
+                setDoublePageMode(pViewer)
+            } else {
+                pViewer.config.doublePages = doublePages
+            }
+            val currentChapter = presenter.getCurrentChapter()
+            if (doublePages) {
+                // If we're moving from single to double, we want the current page to be the first page
+                pViewer.config.shiftDoublePage = (
+                    binding.pageSlider.value.floor() +
+                        (
+                            currentChapter?.pages?.take(binding.pageSlider.value.floor())
+                                ?.count { it.fullPage || it.isolatedPage } ?: 0
+                            )
+                    ) % 2 != 0
+            }
+            presenter.viewerChaptersRelay.value?.let {
+                pViewer.setChaptersDoubleShift(it)
+            }
         }
     }
 
-    private fun setDoublePageMode(viewer: PagerViewer) {
-        val currentOrientation = resources.configuration.orientation
-        viewer.config.doublePages = currentOrientation == Configuration.ORIENTATION_LANDSCAPE
+    private fun setDoublePageMode(viewer: Any) {
+        if (viewer is PagerViewer) {
+            val currentOrientation = resources.configuration.orientation
+            viewer.config.doublePages = currentOrientation == Configuration.ORIENTATION_LANDSCAPE
+        } else if (viewer is GLPagerViewer) {
+            val currentOrientation = resources.configuration.orientation
+            viewer.config.doublePages = currentOrientation == Configuration.ORIENTATION_LANDSCAPE
+        }
     }
 
     private fun shiftDoublePages() {
@@ -1326,12 +1358,12 @@ class ReaderActivity :
         // binding.pageText.text = "${page.number}/${pages.size}"
 
         // Set page numbers
-        if (viewer !is R2LPagerViewer || viewer !is R2LGLPagerViewer) {
-            binding.leftPageText.text = currentPage
-            binding.rightPageText.text = "${pages.size}"
-        } else {
+        if (viewer is R2LPagerViewer || viewer is R2LGLPagerViewer) {
             binding.rightPageText.text = currentPage
             binding.leftPageText.text = "${pages.size}"
+        } else {
+            binding.leftPageText.text = currentPage
+            binding.rightPageText.text = "${pages.size}"
         }
 
         // Set slider progress
