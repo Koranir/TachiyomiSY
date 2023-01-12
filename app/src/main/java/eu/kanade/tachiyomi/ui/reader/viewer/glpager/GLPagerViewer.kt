@@ -138,7 +138,13 @@ abstract class GLPagerViewer(val activity: ReaderActivity) : BaseViewer {
 
     fun setPage(index: Int) {
         logcat { "SetPage $currentPage" }
-        adapter.getPageHolder(currentPage)?.getImage()?.let { viewer.mRenderer.loadTexture(0, it) }
+        if (adapter.getPageHolder(currentPage) != null) {
+            logcat { "Pageholder $currentPage exists" }
+            if (adapter.getPageHolder(currentPage)?.getImage() != null) {
+                logcat { "Image for page $currentPage exists" }
+                adapter.getPageHolder(currentPage)?.getImage()?.let { viewer.mRenderer.loadTexture(0, it) }
+            }
+        }
         currentPage = index
         currentReaderPage?.let { activity.onPageSelected(it) }
         // currentReaderPage?.stream?.invoke()?.let { viewer.mRenderer.loadTexture(0, decodeStream(it)) }

@@ -1,10 +1,12 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.glpager
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.view.MotionEvent
 import eu.kanade.tachiyomi.ui.reader.viewer.GestureDetectorWithLongTap
 import eu.kanade.tachiyomi.util.system.logcat
 
+@SuppressLint("ClickableViewAccessibility")
 class GLPagerSurfaceView(val scontext: Context) : GLTextureView(scontext) {
     /**
      * Tap listener function to execute when a tap is detected.

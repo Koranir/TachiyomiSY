@@ -1,10 +1,13 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.glpager
 
 import android.content.Context
+import android.content.res.Resources
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.opengl.GLES30
 import android.opengl.GLSurfaceView
 import android.opengl.GLUtils
+import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.util.system.logcat
 import logcat.LogPriority
 import java.nio.ByteBuffer
@@ -245,6 +248,8 @@ class GLPagerRenderer(val context: Context) : GLSurfaceView.Renderer {
     override fun onSurfaceCreated(unused: GL10, config: EGLConfig) {
         logcat(message = { "Creating OpenGL Surface with context $context" })
 
+        mSubImageBitmap = BitmapFactory.decodeResource(Resources.getSystem(), R.drawable.splash_icon)
+
         mVertices.put(vertices)
 
         // Set the background frame color
@@ -341,6 +346,7 @@ class GLPagerRenderer(val context: Context) : GLSurfaceView.Renderer {
         subImageSizeI = GLES30.glGetUniformLocation(mProgram, "subImageSize")
 
         GLES30.glGenTextures(1, mImage, 0)
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, mImage[0])
         logcat { "Binded textures textures" }
         GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_REPEAT)
@@ -349,6 +355,7 @@ class GLPagerRenderer(val context: Context) : GLSurfaceView.Renderer {
         GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_LINEAR)
 
         GLES30.glGenTextures(1, mSubImage, 0)
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE1)
         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, mSubImage[0])
         GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_REPEAT)
         GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_REPEAT)
@@ -381,6 +388,9 @@ class GLPagerRenderer(val context: Context) : GLSurfaceView.Renderer {
 
         GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, 3)
         // logcat(LogPriority.ERROR) { "${GLES30.glGetError()}" }
+
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
+        GLES30.glUseProgram(0)
     }
 
     fun loadTexture(item: Int, image: Bitmap) {
@@ -397,7 +407,7 @@ class GLPagerRenderer(val context: Context) : GLSurfaceView.Renderer {
                 subImageHeight = image.height
             }
         }
-        logcat { "GLError: ${GLES30.glGetError()} (zero is normal)" }
+        // logcat { "GLError: ${GLES30.glGetError()} (zero is normal)" }
     }
 
     override fun onSurfaceChanged(gl: GL10, width: Int, height: Int) {

@@ -127,6 +127,7 @@ class GLPageImageHolder(
                     bitmap = decoder.getBitmap()
                     if (viewer.currentPage == page.index) {
                         bitmap?.let { viewer.viewer.mRenderer.loadTexture(0, it) }
+                        logcat { "Loading texture from holder index ${page.index}" }
                     }
                 }
                 unsubscribeProgress(1)
