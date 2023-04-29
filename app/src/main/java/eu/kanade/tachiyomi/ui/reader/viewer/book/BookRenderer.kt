@@ -111,10 +111,12 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
 
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0)
 
-        displayAspectRatioI = GLES20.glGetUniformLocation(shader, "displayAspectRatio")
         aspectRatioI = GLES20.glGetUniformLocation(shader, "aspectRatio")
+        displayAspectRatioI = GLES20.glGetUniformLocation(shader, "displayAspectRatio")
 
         pageOneI = GLES20.glGetUniformLocation(shader, "page")
+
+        logcat { "dAR: $displayAspectRatioI, aR: $aspectRatioI, p1: $pageOneI" }
     }
 
     override fun onSurfaceChanged(gl: GL10, width: Int, height: Int) {
@@ -140,6 +142,7 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
         }
 
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
+
         GLES20.glUseProgram(shader)
 
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vbo[0])
@@ -148,21 +151,15 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
         GLES20.glUniform1i(pageOneI, 0)
         GLES20.glUniform1f(displayAspectRatioI, displayAspectRatio)
 
+        GLES20.glDisable(GLES20.GL_DEPTH_TEST)
+
         if (viewer.getPagesToDraw() != null) {
             var (pageOne, pageTwo) = viewer.getPagesToDraw()!!
-            if (pageOne.loaded) {
-                // logcat { "Loading pageOne with value ${pageOne.gl_texture[0]}" }
-                GLES20.glUniform1f(aspectRatioI, pageOne.width.toFloat() / pageOne.height)
-                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, pageOne.gl_texture[0])
-                GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
-            } else {
-                logcat { "Page One not loaded!" }
-            }
             if (pageTwo != null) {
                 if (pageTwo!!.loaded) {
                     // logcat { "Loading pageTwo with value ${pageTwo.gl_texture[0]}" }
-                    GLES20.glUniform1f(aspectRatioI, pageTwo.width.toFloat() / pageTwo.height)
                     GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, pageTwo.gl_texture[0])
+                    GLES20.glUniform1f(aspectRatioI, pageTwo.width.toFloat() / pageTwo.height.toFloat())
                     GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
                 } else {
                     logcat { "Page two is not loaded" }
@@ -170,9 +167,20 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
             } else {
                 logcat { "Page two is null" }
             }
+            if (pageOne.loaded) {
+                // logcat { "Loading pageOne with value ${pageOne.gl_texture[0]}" }
+                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, pageOne.gl_texture[0])
+                GLES20.glUniform1f(aspectRatioI, pageOne.width.toFloat() / pageOne.height.toFloat())
+                // logcat { "Aspect Ratio is: ${pageOne.width.toFloat() / pageOne.height}" }
+                GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
+            } else {
+                logcat { "Page One not loaded!" }
+            }
+        } else {
+            logcat { "Viewer.GetPages IS NULL!!!" }
         }
 
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
+        // GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
 
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0)
     }
@@ -194,16 +202,22 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
         
         precision mediump float;
         
-        varying float displayAspectRatio;
-        varying float aspectRatio;
+        uniform float aspectRatio;
+        uniform float displayAspectRatio;
         
         attribute vec2 vert;
         
         varying vec2 texCoords;
         
         void main() {
-            vec2 modVert = vec2(vert.x - 0.5, (vert.y - 0.5) * displayAspectRatio / aspectRatio) * 2.;
-            gl_Position = vec4(modVert, 0, 1);
+            vec2 modVert;
+            if(aspectRatio > displayAspectRatio) {
+                modVert = vec2(vert.x - 0.5, (vert.y - 0.5) * displayAspectRatio / aspectRatio) * 2.;
+            } else {
+                modVert = vec2((vert.x - 0.5) / displayAspectRatio * aspectRatio, (vert.y - 0.5));
+            }
+            vec4 outPos = vec4(modVert, 0., 1.);
+            gl_Position = outPos;
             texCoords = vec2(vert);
         }
         
@@ -219,11 +233,10 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
         
         varying vec2 texCoords;
         
-        varying vec4 color;
-        
         void main() {
             vec2 nTexCoords = vec2(texCoords.x, -texCoords.y);
-            gl_FragColor = vec4(texture2D(page, nTexCoords).rgb, 1.);
+            vec4 color = vec4(texture2D(page, nTexCoords).rgb, 1.);
+            gl_FragColor = color;
         }
         
         """
@@ -326,6 +339,8 @@ class BookRendererPage(
                 baseBitmap!!.recycle()
                 baseBitmap = null
                 loaded = true
+
+                logcat { "Loaded texture for page ${page.number}" }
             }
         } else {
             renderer.toDo2.add {

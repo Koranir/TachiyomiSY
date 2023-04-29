@@ -162,9 +162,11 @@ class BookViewer(val activity: ReaderActivity) : BaseViewer {
     }
 
     fun moveLeft() {
+        currentPage = currentPage?.chapter?.pages?.get((currentPage?.index?.plus(1)!!))
     }
 
     fun moveRight() {
+        currentPage = currentPage?.chapter?.pages?.get((currentPage?.index?.minus(1)!!))
     }
     /*override fun getView(): View {
         TODO("Not yet implemented")
