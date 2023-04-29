@@ -42,16 +42,34 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
     var aspectRatioI = 0
 
     var pageOneI: Int = 0
-    var pageTwoI: Int = 0
+
+    var deltaTimeI = 0
+    var secondsI = 0
 
     var toDo1 = mutableListOf<(GL10) -> Unit>()
     var toDo2 = mutableListOf<(GL10) -> Unit>()
     var toDoCurrentIsOne = true
 
+    private val startTime = System.currentTimeMillis()
+    private var lastFrameTime = System.currentTimeMillis()
+
     private var displayAspectRatio = 1f
 
+    private var width = 1
+    private var height = 1
+
+    var touchI = 0
+
+    private var touchX = 0f
+    private var touchY = 0f
+
+    fun drag(x: Float, y: Float, fromLeft: Boolean) {
+        touchX = x / width
+        touchY = y / height
+    }
+
     override fun onSurfaceCreated(gl: GL10, config: EGLConfig?) {
-        GLES20.glClearColor(1f, 0f, 1f, 1f)
+        GLES20.glClearColor(0f, 0f, 0f, 0f)
         logcat { GLES20.glGetString(GLES20.GL_VERSION) }
         logcat { "Initing prog!" }
         shader = GLES20.glCreateProgram()
@@ -116,10 +134,17 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
 
         pageOneI = GLES20.glGetUniformLocation(shader, "page")
 
+        deltaTimeI = GLES20.glGetUniformLocation(shader, "deltaTime")
+        secondsI = GLES20.glGetUniformLocation(shader, "seconds")
+
+        touchI = GLES20.glGetUniformLocation(shader, "touch")
+
         logcat { "dAR: $displayAspectRatioI, aR: $aspectRatioI, p1: $pageOneI" }
     }
 
     override fun onSurfaceChanged(gl: GL10, width: Int, height: Int) {
+        this.width = width
+        this.height = height
         displayAspectRatio = width.toFloat() / height
         GLES20.glViewport(0, 0, width, height)
     }
@@ -141,6 +166,11 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
             toDo2.clear()
         }
 
+        val currentTimeMillis = System.currentTimeMillis()
+        val elapsedTimeMillis = currentTimeMillis - lastFrameTime
+        val passedTimeTotalMillis = currentTimeMillis - startTime
+        lastFrameTime = currentTimeMillis
+
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
 
         GLES20.glUseProgram(shader)
@@ -150,6 +180,11 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glUniform1i(pageOneI, 0)
         GLES20.glUniform1f(displayAspectRatioI, displayAspectRatio)
+
+        GLES20.glUniform1f(deltaTimeI, elapsedTimeMillis / 1000f)
+        GLES20.glUniform1f(secondsI, passedTimeTotalMillis / 1000f)
+
+        GLES20.glUniform2f(touchI, touchX, touchY)
 
         GLES20.glDisable(GLES20.GL_DEPTH_TEST)
 
@@ -231,11 +266,16 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
         
         uniform sampler2D page;
         
+        uniform float deltaTime;
+        uniform float seconds;
+        
+        uniform vec2 touch;
+        
         varying vec2 texCoords;
         
         void main() {
             vec2 nTexCoords = vec2(texCoords.x, -texCoords.y);
-            vec4 color = vec4(texture2D(page, nTexCoords).rgb, 1.);
+            vec4 color = vec4(texture2D(page, nTexCoords).rgb * min(distance(nTexCoords, touch) * 10., 1.), 1.);
             gl_FragColor = color;
         }
         
