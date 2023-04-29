@@ -158,6 +158,8 @@ abstract class PagerViewer(val activity: ReaderActivity) : BaseViewer {
         scope.cancel()
     }
 
+    abstract override fun isRTL(): Boolean
+
     /**
      * Creates a new ViewPager.
      */

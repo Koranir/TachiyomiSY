@@ -201,6 +201,10 @@ class WebtoonViewer(val activity: ReaderActivity, val isContinuous: Boolean = tr
         scope.cancel()
     }
 
+    override fun isRTL(): Boolean {
+        return false
+    }
+
     /**
      * Called from the RecyclerView listener when a [page] is marked as active. It notifies the
      * activity of the change and requests the preload of the next chapter if this is the last page.

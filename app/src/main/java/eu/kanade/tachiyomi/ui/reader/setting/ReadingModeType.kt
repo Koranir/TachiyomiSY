@@ -5,6 +5,7 @@ import androidx.annotation.StringRes
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.ui.reader.viewer.BaseViewer
+import eu.kanade.tachiyomi.ui.reader.viewer.book.BookViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.L2RPagerViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.R2LPagerViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.VerticalPagerViewer
@@ -17,6 +18,7 @@ enum class ReadingModeType(val prefValue: Int, @StringRes val stringRes: Int, @D
     VERTICAL(3, R.string.vertical_viewer, R.drawable.ic_reader_vertical_24dp, 0x00000003),
     WEBTOON(4, R.string.webtoon_viewer, R.drawable.ic_reader_webtoon_24dp, 0x00000004),
     CONTINUOUS_VERTICAL(5, R.string.vertical_plus_viewer, R.drawable.ic_reader_continuous_vertical_24dp, 0x00000005),
+    RTL_BOOK(6, R.string.rtl_book_viewer, R.drawable.ic_book_open_variant_24dp, 0x00000006),
     ;
 
     companion object {
@@ -38,6 +40,7 @@ enum class ReadingModeType(val prefValue: Int, @StringRes val stringRes: Int, @D
                 VERTICAL -> VerticalPagerViewer(activity)
                 WEBTOON -> WebtoonViewer(activity)
                 CONTINUOUS_VERTICAL -> WebtoonViewer(activity, isContinuous = false)
+                RTL_BOOK -> BookViewer(activity)
                 DEFAULT -> throw IllegalStateException("Preference value must be resolved: $preference")
             }
         }

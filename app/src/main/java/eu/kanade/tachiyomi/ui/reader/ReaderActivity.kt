@@ -81,7 +81,6 @@ import eu.kanade.tachiyomi.ui.reader.viewer.BaseViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.PagerConfig
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.PagerViewer
-import eu.kanade.tachiyomi.ui.reader.viewer.pager.R2LPagerViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.VerticalPagerViewer
 import eu.kanade.tachiyomi.ui.reader.viewer.webtoon.WebtoonViewer
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
@@ -558,7 +557,7 @@ class ReaderActivity : BaseActivity() {
         listOf(binding.leftChapter, binding.aboveChapter).forEach {
             it.setOnClickListener {
                 if (viewer != null) {
-                    if (viewer is R2LPagerViewer) {
+                    if (viewer!!.isRTL()) {
                         loadNextChapter()
                     } else {
                         loadPreviousChapter()
@@ -569,7 +568,7 @@ class ReaderActivity : BaseActivity() {
         listOf(binding.rightChapter, binding.belowChapter).forEach {
             it.setOnClickListener {
                 if (viewer != null) {
-                    if (viewer is R2LPagerViewer) {
+                    if (viewer!!.isRTL()) {
                         loadPreviousChapter()
                     } else {
                         loadNextChapter()
@@ -1186,8 +1185,8 @@ class ReaderActivity : BaseActivity() {
         // SY <--
         supportActionBar?.title = manga.title
 
-        binding.pageSlider.isRTL = newViewer is R2LPagerViewer
-        if (newViewer is R2LPagerViewer) {
+        binding.pageSlider.isRTL = newViewer.isRTL()
+        if (newViewer.isRTL()) {
             binding.leftChapter.setTooltip(R.string.action_next_chapter)
             binding.rightChapter.setTooltip(R.string.action_previous_chapter)
         } else {
@@ -1262,8 +1261,8 @@ class ReaderActivity : BaseActivity() {
         binding.readerSeekbar.isInvisible = currentChapterPageCount == 1
         binding.readerSeekbarVert.isInvisible = currentChapterPageCount == 1
 
-        val leftChapterObject = if (viewer is R2LPagerViewer) viewerChapters.nextChapter else viewerChapters.prevChapter
-        val rightChapterObject = if (viewer is R2LPagerViewer) viewerChapters.prevChapter else viewerChapters.nextChapter
+        val leftChapterObject = if (viewer?.isRTL() == true) viewerChapters.nextChapter else viewerChapters.prevChapter
+        val rightChapterObject = if (viewer?.isRTL() == true) viewerChapters.prevChapter else viewerChapters.nextChapter
 
         if (leftChapterObject == null && rightChapterObject == null) {
             binding.leftChapter.isVisible = false
@@ -1374,7 +1373,7 @@ class ReaderActivity : BaseActivity() {
         // binding.pageText.text = "${page.number}/${pages.size}"
 
         // Set page numbers
-        if (viewer !is R2LPagerViewer) {
+        if (viewer?.isRTL() != true) {
             binding.leftPageText.text = currentPage
             binding.rightPageText.text = "${pages.size}"
         } else {
@@ -1410,7 +1409,7 @@ class ReaderActivity : BaseActivity() {
                 this,
                 page,
                 extraPage,
-                (viewer !is R2LPagerViewer) xor (viewer?.config?.invertDoublePages ?: false),
+                (viewer?.isRTL() != true) xor (viewer?.config?.invertDoublePages ?: false),
                 viewer?.config?.pageCanvasColor,
             ).show()
         } catch (e: WindowManager.BadTokenException) {

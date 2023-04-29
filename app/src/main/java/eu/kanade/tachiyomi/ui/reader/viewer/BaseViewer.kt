@@ -22,6 +22,12 @@ interface BaseViewer {
     fun destroy() {}
 
     /**
+     * Is RTL.
+     * Flips the chapter loading.
+     */
+    fun isRTL(): Boolean
+
+    /**
      * Tells this viewer to set the given [chapters] as active.
      */
     fun setChapters(chapters: ViewerChapters)
