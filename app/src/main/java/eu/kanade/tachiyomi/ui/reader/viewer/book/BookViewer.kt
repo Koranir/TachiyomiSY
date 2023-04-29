@@ -20,7 +20,7 @@ class BookViewer(val activity: ReaderActivity) : BaseViewer {
 
     val scope = MainScope()
 
-    val frame: BookFrame = BookFrame(activity)
+    val frame: BookFrame = BookFrame(activity, this)
 
     val config = BookConfig(this, scope)
 
@@ -51,6 +51,19 @@ class BookViewer(val activity: ReaderActivity) : BaseViewer {
         }
     }
 
+    fun getPagesToDraw(): Pair<BookRendererPage, BookRendererPage?>? {
+        if (currentPage != null) {
+            val indexOfFirstPage = frame.pages.indexOf(frame.pages.find { it.isTheSamePageAs(currentPage!!) })
+            if (indexOfFirstPage < frame.pages.size - 2) {
+                return Pair(frame.pages.get(indexOfFirstPage), frame.pages.get(indexOfFirstPage + 1))
+            } else {
+                return Pair(frame.pages.get(indexOfFirstPage), null)
+            }
+        } else {
+            return null
+        }
+    }
+
     override fun getView(): View {
         return frame
     }
@@ -60,14 +73,15 @@ class BookViewer(val activity: ReaderActivity) : BaseViewer {
     }
 
     override fun setChapters(chapters: ViewerChapters) {
-        var newList = mutableListOf<ReaderPage>()
-        chapters.currChapter.pages?.let { newList.addAll(it) }
-        items = newList
-        currentPage = items.first()
+        logcat { "Setting up chapters." }
+        frame.setPages(chapters)
+        moveToPage(frame.pages.first().page)
     }
 
     override fun moveToPage(page: ReaderPage) {
+        logcat { "Moving to page ${page.number} in ${page.chapter.chapter.name}." }
         currentPage = page
+        activity.onPageSelected(currentPage!!)
     }
 
     /**

@@ -5,10 +5,13 @@ import android.graphics.PixelFormat
 import android.opengl.GLSurfaceView
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
+import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import eu.kanade.tachiyomi.ui.reader.viewer.GestureDetectorWithLongTap
 import tachiyomi.core.util.system.logcat
 
-class BookFrame(context: Context) : GLSurfaceView(context) {
+class BookFrame(context: Context, viewer: BookViewer) : GLSurfaceView(context) {
+
+    var pages: MutableList<BookRendererPage> = mutableListOf()
 
     private val listener = GestureListener()
     private val detector = Detector()
@@ -23,7 +26,7 @@ class BookFrame(context: Context) : GLSurfaceView(context) {
      */
     var longTapListener: ((MotionEvent) -> Boolean)? = null
 
-    private var renderer = BookRenderer()
+    private var renderer = BookRenderer(viewer)
 
     /*override fun onTouchEvent(event: MotionEvent): Boolean {
         logcat(message = { "WTF DOG? It's a touch event func!!" })
@@ -53,6 +56,14 @@ class BookFrame(context: Context) : GLSurfaceView(context) {
     init {
         holder.setFormat(PixelFormat.TRANSLUCENT)
         setRenderer(renderer)
+    }
+
+    fun setPages(chapters: ViewerChapters) {
+        if (chapters.currChapter.pages != null) {
+            for (page in chapters.currChapter.pages!!) {
+                pages.add(BookRendererPage(page))
+            }
+        }
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
