@@ -7,7 +7,6 @@ import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import eu.kanade.tachiyomi.ui.reader.viewer.GestureDetectorWithLongTap
-import tachiyomi.core.util.system.logcat
 
 class BookFrame(context: Context, viewer: BookViewer) : GLSurfaceView(context) {
 
@@ -55,19 +54,20 @@ class BookFrame(context: Context, viewer: BookViewer) : GLSurfaceView(context) {
 
     init {
         holder.setFormat(PixelFormat.TRANSLUCENT)
+        setEGLContextClientVersion(2)
         setRenderer(renderer)
     }
 
     fun setPages(chapters: ViewerChapters) {
         if (chapters.currChapter.pages != null) {
             for (page in chapters.currChapter.pages!!) {
-                pages.add(BookRendererPage(page))
+                pages.add(BookRendererPage(page, renderer = renderer))
             }
         }
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
-        logcat { "Dispatched touch event {}$event" }
+        // logcat { "Dispatched touch event {}$event" }
         var handled = super.dispatchTouchEvent(event)
         handled = handled or detector.onTouchEvent(event)
         return handled
@@ -78,13 +78,13 @@ class BookFrame(context: Context, viewer: BookViewer) : GLSurfaceView(context) {
      */
     inner class GestureListener : GestureDetectorWithLongTap.Listener() {
         override fun onSingleTapConfirmed(ev: MotionEvent): Boolean {
-            logcat(message = { "WTF DOG? A single touch was confiremed!!" })
+            // logcat(message = { "WTF DOG? A single touch was confiremed!!" })
             tapListener?.invoke(ev)
             return true
         }
 
         override fun onLongTapConfirmed(ev: MotionEvent) {
-            logcat(message = { "WTF DOG? A loong tap was confiremd!!" })
+            // logcat(message = { "WTF DOG? A loong tap was confiremd!!" })
             val listener = longTapListener
             if (listener != null && listener.invoke(ev)) {
                 performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
