@@ -5,10 +5,12 @@ import android.graphics.PixelFormat
 import android.opengl.GLSurfaceView
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
+import android.view.ViewConfiguration
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import eu.kanade.tachiyomi.ui.reader.viewer.GestureDetectorWithLongTap
+import kotlin.math.abs
 
-class BookFrame(context: Context, viewer: BookViewer) : GLSurfaceView(context) {
+class BookFrame(context: Context, val viewer: BookViewer) : GLSurfaceView(context) {
 
     var pages: MutableList<BookRendererPage> = mutableListOf()
 
@@ -93,7 +95,102 @@ class BookFrame(context: Context, viewer: BookViewer) : GLSurfaceView(context) {
     }
 
     inner class Detector : GestureDetectorWithLongTap(context, listener) {
+        private var scrollPointerId = 0
+        private var downX = 0
+        private var downY = 0
+        private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+
+        private var dragX = 0
+        private var dragY = 0
+        private var isDragging = false
+
+        private var draggingFromRight = false
+
         override fun onTouchEvent(ev: MotionEvent): Boolean {
+            val action = ev.actionMasked
+            val actionIndex = ev.actionIndex
+            when (action) {
+                MotionEvent.ACTION_DOWN -> {
+                    scrollPointerId = ev.getPointerId(0)
+                    downX = (ev.x + 0.5f).toInt()
+                    downY = (ev.y + 0.5f).toInt()
+                }
+                MotionEvent.ACTION_POINTER_DOWN -> {
+                    scrollPointerId = ev.getPointerId(actionIndex)
+                    downX = (ev.getX(actionIndex) + 0.5f).toInt()
+                    downY = (ev.getY(actionIndex) + 0.5f).toInt()
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val index = ev.findPointerIndex(scrollPointerId)
+                    if (index < 0) {
+                        return false
+                    }
+
+                    val x = (ev.getX(index) + 0.5f).toInt()
+                    val y = (ev.getY(index) + 0.5f).toInt()
+                    var dx = x - downX
+                    var dy = y - downY
+
+                    draggingFromRight = dx < 0f
+
+                    isDragging = abs(dx) > touchSlop
+
+                    if (isDragging) {
+                        renderer.drag(x.toFloat(), y.toFloat(), !draggingFromRight)
+                    }
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (isDragging) {
+                        if (!draggingFromRight) {
+                            viewer.moveRight()
+                        } else {
+                            viewer.moveLeft()
+                        }
+                        /* val thisAction = viewer.config.navigator.getAction(PointF(ev.x, ev.y))
+                        when (viewer.config.navigator.getAction(
+                            PointF(
+                                downX.toFloat(),
+                                downY.toFloat()
+                            )
+                        )) {
+                            ViewerNavigation.NavigationRegion.NEXT -> {
+                                if (thisAction == ViewerNavigation.NavigationRegion.PREV) {
+                                    viewer.moveToPrevious()
+                                }
+                            }
+                            ViewerNavigation.NavigationRegion.PREV -> {
+                                if (thisAction == ViewerNavigation.NavigationRegion.NEXT) {
+                                    viewer.moveToNext()
+                                }
+                            }
+                            ViewerNavigation.NavigationRegion.RIGHT -> {
+                                if (thisAction == ViewerNavigation.NavigationRegion.LEFT) {
+                                    viewer.moveLeft()
+                                }
+                            }
+                            ViewerNavigation.NavigationRegion.LEFT -> {
+                                if (thisAction == ViewerNavigation.NavigationRegion.RIGHT) {
+                                    viewer.moveRight()
+                                }
+                            }
+                            else -> {
+                                when (thisAction) {
+                                    ViewerNavigation.NavigationRegion.MENU -> viewer.activity.toggleMenu()
+                                    ViewerNavigation.NavigationRegion.NEXT -> viewer.moveToNext()
+                                    ViewerNavigation.NavigationRegion.PREV -> viewer.moveToPrevious()
+                                    ViewerNavigation.NavigationRegion.RIGHT -> viewer.moveRight()
+                                    ViewerNavigation.NavigationRegion.LEFT -> viewer.moveLeft()
+                                }
+                            }
+                        }*/
+                    }
+                    isDragging = false
+                    renderer.finishDrag(!draggingFromRight)
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    isDragging = false
+                }
+            }
             super.onTouchEvent(ev)
             return true
         }

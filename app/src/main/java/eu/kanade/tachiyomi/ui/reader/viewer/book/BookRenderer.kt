@@ -45,6 +45,7 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
 
     var deltaTimeI = 0
     var secondsI = 0
+    var isDraggingI = 0
 
     var toDo1 = mutableListOf<(GL10) -> Unit>()
     var toDo2 = mutableListOf<(GL10) -> Unit>()
@@ -59,13 +60,25 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
     private var height = 1
 
     var touchI = 0
+    var sourceI = 0
+
+    private var fromLeft = false
 
     private var touchX = 0f
     private var touchY = 0f
+    private var isDragging = false
+
+    private var isSlipI = 0
 
     fun drag(x: Float, y: Float, fromLeft: Boolean) {
-        touchX = x / width
-        touchY = y / height
+        touchX = (x / width)
+        touchY = (y / height)
+        isDragging = true
+        this.fromLeft = fromLeft
+    }
+
+    fun finishDrag(fromLeft: Boolean) {
+        isDragging = false
     }
 
     override fun onSurfaceCreated(gl: GL10, config: EGLConfig?) {
@@ -138,8 +151,16 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
         secondsI = GLES20.glGetUniformLocation(shader, "seconds")
 
         touchI = GLES20.glGetUniformLocation(shader, "touch")
+        isDraggingI = GLES20.glGetUniformLocation(shader, "isDragging")
+        sourceI = GLES20.glGetUniformLocation(shader, "source")
+
+        isSlipI = GLES20.glGetUniformLocation(shader, "isSlip")
 
         logcat { "dAR: $displayAspectRatioI, aR: $aspectRatioI, p1: $pageOneI" }
+
+        GLES20.glDisable(GLES20.GL_DEPTH_TEST)
+        GLES20.glDisable(GLES20.GL_CULL_FACE)
+        GLES20.glEnable(GLES20.GL_BLEND)
     }
 
     override fun onSurfaceChanged(gl: GL10, width: Int, height: Int) {
@@ -185,16 +206,26 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
         GLES20.glUniform1f(secondsI, passedTimeTotalMillis / 1000f)
 
         GLES20.glUniform2f(touchI, touchX, touchY)
+        // logcat { "Moved to $touchX, $touchY." }
+        GLES20.glUniform2f(
+            sourceI,
+            if (fromLeft) 0f else 1f,
+            0f,
+        )
+
+        GLES20.glUniform1i(isSlipI, 0)
 
         GLES20.glDisable(GLES20.GL_DEPTH_TEST)
 
         if (viewer.getPagesToDraw() != null) {
-            var (pageOne, pageTwo) = viewer.getPagesToDraw()!!
+            val (pageOne, pageTwo) = viewer.getPagesToDraw()!!
             if (pageTwo != null) {
-                if (pageTwo!!.loaded) {
+                if (pageTwo.loaded) {
                     // logcat { "Loading pageTwo with value ${pageTwo.gl_texture[0]}" }
                     GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, pageTwo.gl_texture[0])
                     GLES20.glUniform1f(aspectRatioI, pageTwo.width.toFloat() / pageTwo.height.toFloat())
+                    GLES20.glUniform1i(isDraggingI, 0)
+                    // logcat { "Drawing page 2 with texture ${pageTwo.gl_texture[0]}" }
                     GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
                 } else {
                     logcat { "Page two is not loaded" }
@@ -206,7 +237,11 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
                 // logcat { "Loading pageOne with value ${pageOne.gl_texture[0]}" }
                 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, pageOne.gl_texture[0])
                 GLES20.glUniform1f(aspectRatioI, pageOne.width.toFloat() / pageOne.height.toFloat())
+                GLES20.glUniform1i(isDraggingI, if (isDragging) 1 else 0)
                 // logcat { "Aspect Ratio is: ${pageOne.width.toFloat() / pageOne.height}" }
+                // logcat { "Drawing page 1 with texture ${pageOne.gl_texture[0]}" }
+                GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
+                GLES20.glUniform1i(isSlipI, 1)
                 GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
             } else {
                 logcat { "Page One not loaded!" }
@@ -236,24 +271,72 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
         // Vertex Book Shader
         
         precision mediump float;
+        precision mediump int;
         
         uniform float aspectRatio;
         uniform float displayAspectRatio;
         
+        uniform vec2 source;
+        uniform vec2 touch;
+        
         attribute vec2 vert;
         
         varying vec2 texCoords;
+        varying vec2 vPos;
+        
+        uniform int isSlip;
+        
+        vec2 intersects(vec2 A, vec2 B, vec2 C, vec2 D)
+        {
+            float a1 = B.y - A.y;
+            float b1 = A.x - B.x;
+            float c1 = a1*A.x + b1*A.y;
+            
+            float a2 = D.y - C.y;
+            float b2 = C.x - D.x;
+            float c2 = a2*C.x + b2*C.y;
+            
+            float determinate = a1*b2 - a2*b1;
+            if(determinate == 0.)
+            {
+                return vec2(-1., -1.);
+            }
+            
+            float x = (b2*c1 - b1*c2)/determinate;
+            float y = (a1*c2 - a2*c1)/determinate;
+            
+            return(vec2(x, y));
+        }
         
         void main() {
-            vec2 modVert;
-            if(aspectRatio > displayAspectRatio) {
-                modVert = vec2(vert.x - 0.5, (vert.y - 0.5) * displayAspectRatio / aspectRatio) * 2.;
-            } else {
-                modVert = vec2((vert.x - 0.5) / displayAspectRatio * aspectRatio, (vert.y - 0.5));
+            vec2 modVert = vert;
+            
+            if(isSlip == 1) {
+                vec2 touchPoint = vec2(touch.x, (touch.y - 0.5) * displayAspectRatio / aspectRatio * 0.5);
+                /*if(distance(source, touchPoint) > 1.) {
+                
+                }*/
+                vec2 touchPointVec = normalize(touchPoint - source);
+                vec2 midPoint = (touchPoint + source) / 2.;
+                vec2 iTouchPointVec = vec2(-touchPointVec.y, touchPointVec.x);
+                vec2 leftMost = midPoint - iTouchPointVec;
+                vec2 rightMost = midPoint + iTouchPointVec;
+                
+                vec2 intersect = intersects(leftMost, rightMost, modVert, modVert - touchPointVec);
+                modVert = intersect + (intersect - modVert);
+                modVert = vec2(modVert.x, 1. - modVert.y);
             }
+            
+            if(aspectRatio > displayAspectRatio) {
+                modVert = vec2(modVert.x - 0.5, (modVert.y - 0.5) * displayAspectRatio / aspectRatio) * 2.;
+            } else {
+                modVert = vec2((modVert.x - 0.5) / displayAspectRatio * aspectRatio, (modVert.y - 0.5)) * 2.;
+            }
+            
             vec4 outPos = vec4(modVert, 0., 1.);
             gl_Position = outPos;
-            texCoords = vec2(vert);
+            texCoords = vec2(vert.x, 1. - vert.y);
+            vPos = modVert;
         }
         
         """
@@ -263,20 +346,36 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
         
         precision mediump float;
         precision mediump sampler2D;
+        precision mediump int;
         
         uniform sampler2D page;
+        
+        uniform float aspectRatio;
+        uniform float displayAspectRatio;
         
         uniform float deltaTime;
         uniform float seconds;
         
+        uniform vec2 source;
         uniform vec2 touch;
+        uniform int isDragging;
+        uniform int isSlip;
         
         varying vec2 texCoords;
+        varying vec2 vPos;
         
         void main() {
-            vec2 nTexCoords = vec2(texCoords.x, -texCoords.y);
-            vec4 color = vec4(texture2D(page, nTexCoords).rgb * min(distance(nTexCoords, touch) * 10., 1.), 1.);
-            gl_FragColor = color;
+            vec2 touchCorrect = vec2(touch.x, (touch.y - 0.5) / displayAspectRatio * aspectRatio + 0.5);
+            vec4 color;
+            
+            if(isDragging == 1 && isSlip == 0 ) {
+                if(distance(touchCorrect, texCoords) > distance(source, texCoords)) {
+                    discard;
+                }
+                gl_FragColor = vec4(texture2D(page, texCoords).rgb * min(distance(texCoords, touchCorrect) * 10., 1.) * min(distance(texCoords, source) * 10., 1.), 1.);
+            } else {
+                gl_FragColor = vec4(texture2D(page, texCoords).rgb, 1.);
+            }
         }
         
         """

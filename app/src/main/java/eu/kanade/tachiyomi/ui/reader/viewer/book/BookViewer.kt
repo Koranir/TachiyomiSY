@@ -162,11 +162,17 @@ class BookViewer(val activity: ReaderActivity) : BaseViewer {
     }
 
     fun moveLeft() {
-        currentPage = currentPage?.chapter?.pages?.get((currentPage?.index?.plus(1)!!))
+        if (currentPage?.index!! > 0) {
+            currentPage?.chapter?.pages?.get((currentPage?.index?.minus(1)!!))
+                ?.let { moveToPage(it) }
+        }
     }
 
     fun moveRight() {
-        currentPage = currentPage?.chapter?.pages?.get((currentPage?.index?.minus(1)!!))
+        if (currentPage?.index!! < currentPage?.chapter?.pages?.size?.minus(2)!!) {
+            currentPage?.chapter?.pages?.get((currentPage?.index?.plus(1)!!))
+                ?.let { moveToPage(it) }
+        }
     }
     /*override fun getView(): View {
         TODO("Not yet implemented")
