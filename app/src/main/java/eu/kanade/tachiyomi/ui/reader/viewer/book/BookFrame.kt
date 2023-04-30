@@ -28,7 +28,7 @@ class BookFrame(context: Context, val viewer: BookViewer) : GLSurfaceView(contex
      */
     var longTapListener: ((MotionEvent) -> Boolean)? = null
 
-    private var renderer = BookRenderer(viewer)
+    var renderer = BookRenderer(viewer)
 
     /*override fun onTouchEvent(event: MotionEvent): Boolean {
         logcat(message = { "WTF DOG? It's a touch event func!!" })

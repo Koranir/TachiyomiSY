@@ -71,6 +71,7 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
     private var isDragging = false
 
     private var isSlipI = 0
+    var offset = 0
 
     fun drag(x: Float, y: Float, fromLeft: Boolean) {
         downTouchX = (x / width)
@@ -85,6 +86,11 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
             touchY = aspect
             touchX = if (fromLeft) 0.01f else 2f
         }
+        if (fromLeft) {
+            offset = 0
+        } else {
+            offset = 0
+        }
         isDragging = true
     }
 
@@ -93,13 +99,35 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
         isDragging = false
         if (fromLeft) {
             downTouchX = 2f
-            downTouchY = 0.01f
+            val (prevPage, pageOne, pageTwo) = viewer.getPagesToDraw()!!
+            downTouchY = if (pageTwo != null) {
+                val aspect =
+                    0.05f + 0.5f * (width.toFloat() / height) * (pageTwo.width.toFloat() / pageTwo.height)
+                logcat { "Aspect ratio of image is: $aspect" }
+                aspect
+            } else {
+                val aspect =
+                    0.05f + 0.5f * (width.toFloat() / height) * (pageOne.width.toFloat() / pageOne.height)
+                logcat { "Aspect ratio of image is: $aspect" }
+                aspect
+            }
+            offset = -1
         } else {
+            logcat { "FROM RIGHT" }
             downTouchX = 0.01f
             val (prevPage, pageOne, pageTwo) = viewer.getPagesToDraw()!!
-            val aspect = 0.05f + 0.5f * (width.toFloat() / height) * (pageOne.width.toFloat() / pageOne.height)
-            logcat { "Aspect ratio of image is: $aspect" }
-            downTouchY = aspect
+            downTouchY = if (prevPage != null) {
+                val aspect =
+                    0.05f + 0.5f * (width.toFloat() / height) * (prevPage.width.toFloat() / prevPage.height)
+                logcat { "Aspect ratio of image is: $aspect" }
+                aspect
+            } else {
+                val aspect =
+                    0.05f + 0.5f * (width.toFloat() / height) * (pageOne.width.toFloat() / pageOne.height)
+                logcat { "Aspect ratio of image is: $aspect" }
+                aspect
+            }
+            offset = 0
         }
         this.fromLeft = true
     }
@@ -220,8 +248,8 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
         val passedTimeTotalMillis = currentTimeMillis - startTime
         lastFrameTime = currentTimeMillis
 
-        touchX += (downTouchX - touchX) * elapsedTimeMillis / 400f
-        touchY += (downTouchY - touchY) * elapsedTimeMillis / 400f
+        touchX += (downTouchX - touchX) * elapsedTimeMillis / 200f
+        touchY += (downTouchY - touchY) * elapsedTimeMillis / 200f
 
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
 
@@ -447,7 +475,7 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
                     if(distance(touchCorrect, texCoords) < distance(source, texCoords)) {
                         discard;
                     }
-                    gl_FragColor = (1. - shadow) * vec4(texture2D(page, texCoords).rgb * min(distance(texCoords, touchCorrect) * 10., 1.) * min(distance(texCoords, source) * 10., 1.), 1.);
+                    gl_FragColor = (1. - shadow) * vec4(texture2D(page, texCoords).rgb, 1.);
                 } else {
                     if(distance(touchCorrect, texCoords) > distance(source, texCoords)) {
                         discard;

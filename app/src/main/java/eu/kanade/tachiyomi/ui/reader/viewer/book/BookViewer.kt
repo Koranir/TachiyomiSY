@@ -52,34 +52,43 @@ class BookViewer(val activity: ReaderActivity) : BaseViewer {
     }
 
     fun getPagesToDraw(): Triple<BookRendererPage?, BookRendererPage, BookRendererPage?>? {
+        val offset = frame.renderer.offset
         if (currentPage != null) {
             val indexOfFirstPage = frame.pages.indexOf(frame.pages.find { it.isTheSamePageAs(currentPage!!) })
-            if (indexOfFirstPage < frame.pages.size - 2) {
-                if (indexOfFirstPage > 0) {
+            if (indexOfFirstPage < frame.pages.size - 2 + offset) {
+                if (indexOfFirstPage + offset > 0) {
                     return Triple(
-                        frame.pages[indexOfFirstPage - 1],
-                        frame.pages[indexOfFirstPage],
-                        frame.pages[indexOfFirstPage + 1],
+                        frame.pages[indexOfFirstPage - 1 + offset],
+                        frame.pages[indexOfFirstPage + offset],
+                        frame.pages[indexOfFirstPage + 1 + offset],
+                    )
+                } else if (offset >= 0) {
+                    return Triple(
+                        null,
+                        frame.pages[indexOfFirstPage + offset],
+                        frame.pages[indexOfFirstPage + 1 + offset],
                     )
                 } else {
                     return Triple(
                         null,
-                        frame.pages[indexOfFirstPage],
-                        frame.pages[indexOfFirstPage + 1],
+                        frame.pages[0],
+                        frame.pages[indexOfFirstPage + 1 + offset],
                     )
                 }
             } else {
-                if (indexOfFirstPage > 0) {
+                if (indexOfFirstPage + offset + 1 < frame.pages.size) {
+                    logcat { "FROM LINE 80" }
                     return Triple(
-                        frame.pages[indexOfFirstPage - 1],
-                        frame.pages[indexOfFirstPage],
-                        null,
+                        frame.pages[indexOfFirstPage - 1 + offset],
+                        frame.pages[indexOfFirstPage + offset],
+                        frame.pages[indexOfFirstPage + offset + 1],
                     )
                 } else {
+                    logcat { "FROM LINE 87" }
                     return Triple(
-                        null,
-                        frame.pages[indexOfFirstPage],
-                        null,
+                        frame.pages[indexOfFirstPage + offset - 1],
+                        frame.pages[indexOfFirstPage + offset],
+                        null, // frame.pages[indexOfFirstPage + offset + 1],
                     )
                 }
             }
@@ -133,12 +142,12 @@ class BookViewer(val activity: ReaderActivity) : BaseViewer {
             }
             KeyEvent.KEYCODE_DPAD_RIGHT -> {
                 if (isUp) {
-                    if (ctrlPressed) moveToNext() else moveRight()
+                    if (ctrlPressed) moveToNext() else simDrag(false)
                 }
             }
             KeyEvent.KEYCODE_DPAD_LEFT -> {
                 if (isUp) {
-                    if (ctrlPressed) moveToPrevious() else moveLeft()
+                    if (ctrlPressed) moveToPrevious() else simDrag(true)
                 }
             }
             KeyEvent.KEYCODE_DPAD_DOWN -> if (isUp) moveDown()
@@ -171,17 +180,17 @@ class BookViewer(val activity: ReaderActivity) : BaseViewer {
 
     fun moveToNext() {
         if (this.isRTL()) {
-            moveLeft()
+            simDrag(false)
         } else {
-            moveRight()
+            simDrag(true)
         }
     }
 
     fun moveToPrevious() {
         if (this.isRTL()) {
-            moveRight()
+            simDrag(true)
         } else {
-            moveLeft()
+            simDrag(false)
         }
     }
 
@@ -193,11 +202,22 @@ class BookViewer(val activity: ReaderActivity) : BaseViewer {
     }
 
     fun moveRight() {
-        if (currentPage?.index!! < currentPage?.chapter?.pages?.size?.minus(2)!!) {
+        if (currentPage?.index!! < currentPage?.chapter?.pages?.size?.minus(1)!!) {
             currentPage?.chapter?.pages?.get((currentPage?.index?.plus(1)!!))
                 ?.let { moveToPage(it) }
         }
     }
+
+    fun simDrag(fromLeft: Boolean) {
+        frame.renderer.drag(0f, 0f, fromLeft)
+        frame.renderer.finishDrag(fromLeft)
+        if (fromLeft) {
+            moveRight()
+        } else {
+            moveLeft()
+        }
+    }
+
     /*override fun getView(): View {
         TODO("Not yet implemented")
     }
