@@ -8,6 +8,7 @@ import android.view.MotionEvent
 import android.view.ViewConfiguration
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
 import eu.kanade.tachiyomi.ui.reader.viewer.GestureDetectorWithLongTap
+import tachiyomi.core.util.system.logcat
 import kotlin.math.abs
 
 class BookFrame(context: Context, val viewer: BookViewer) : GLSurfaceView(context) {
@@ -141,11 +142,13 @@ class BookFrame(context: Context, val viewer: BookViewer) : GLSurfaceView(contex
                 }
                 MotionEvent.ACTION_UP -> {
                     if (isDragging) {
+                        logcat { "Released drag" }
                         if (!draggingFromRight) {
                             viewer.moveRight()
                         } else {
                             viewer.moveLeft()
                         }
+                        renderer.finishDrag(!draggingFromRight)
                         /* val thisAction = viewer.config.navigator.getAction(PointF(ev.x, ev.y))
                         when (viewer.config.navigator.getAction(
                             PointF(
@@ -185,7 +188,6 @@ class BookFrame(context: Context, val viewer: BookViewer) : GLSurfaceView(contex
                         }*/
                     }
                     isDragging = false
-                    renderer.finishDrag(!draggingFromRight)
                 }
                 MotionEvent.ACTION_CANCEL -> {
                     isDragging = false

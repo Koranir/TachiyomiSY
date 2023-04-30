@@ -51,13 +51,37 @@ class BookViewer(val activity: ReaderActivity) : BaseViewer {
         }
     }
 
-    fun getPagesToDraw(): Pair<BookRendererPage, BookRendererPage?>? {
+    fun getPagesToDraw(): Triple<BookRendererPage?, BookRendererPage, BookRendererPage?>? {
         if (currentPage != null) {
             val indexOfFirstPage = frame.pages.indexOf(frame.pages.find { it.isTheSamePageAs(currentPage!!) })
             if (indexOfFirstPage < frame.pages.size - 2) {
-                return Pair(frame.pages.get(indexOfFirstPage), frame.pages.get(indexOfFirstPage + 1))
+                if (indexOfFirstPage > 0) {
+                    return Triple(
+                        frame.pages[indexOfFirstPage - 1],
+                        frame.pages[indexOfFirstPage],
+                        frame.pages[indexOfFirstPage + 1],
+                    )
+                } else {
+                    return Triple(
+                        null,
+                        frame.pages[indexOfFirstPage],
+                        frame.pages[indexOfFirstPage + 1],
+                    )
+                }
             } else {
-                return Pair(frame.pages.get(indexOfFirstPage), null)
+                if (indexOfFirstPage > 0) {
+                    return Triple(
+                        frame.pages[indexOfFirstPage - 1],
+                        frame.pages[indexOfFirstPage],
+                        null,
+                    )
+                } else {
+                    return Triple(
+                        null,
+                        frame.pages[indexOfFirstPage],
+                        null,
+                    )
+                }
             }
         } else {
             return null

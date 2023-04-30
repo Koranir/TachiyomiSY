@@ -64,21 +64,44 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
 
     private var fromLeft = false
 
-    private var touchX = 0f
-    private var touchY = 0f
+    private var touchX = 0.01f
+    private var touchY = 0.01f
+    private var downTouchX = 0.01f
+    private var downTouchY = 0.01f
     private var isDragging = false
 
     private var isSlipI = 0
 
     fun drag(x: Float, y: Float, fromLeft: Boolean) {
-        touchX = (x / width)
-        touchY = (y / height)
-        isDragging = true
+        downTouchX = (x / width)
+        downTouchY = (y / height)
         this.fromLeft = fromLeft
+
+        if (!isDragging) {
+            logcat { "Initiated drag" }
+            val (prevPage, pageOne, pageTwo) = viewer.getPagesToDraw()!!
+            val aspect = 0.05f + 0.5f * (width.toFloat() / height) * (pageOne.width.toFloat() / pageOne.height)
+            logcat { "Aspect ratio of image is: $aspect" }
+            touchY = aspect
+            touchX = if (fromLeft) 0.01f else 2f
+        }
+        isDragging = true
     }
 
     fun finishDrag(fromLeft: Boolean) {
+        logcat { "Finished drag" }
         isDragging = false
+        if (fromLeft) {
+            downTouchX = 2f
+            downTouchY = 0.01f
+        } else {
+            downTouchX = 0.01f
+            val (prevPage, pageOne, pageTwo) = viewer.getPagesToDraw()!!
+            val aspect = 0.05f + 0.5f * (width.toFloat() / height) * (pageOne.width.toFloat() / pageOne.height)
+            logcat { "Aspect ratio of image is: $aspect" }
+            downTouchY = aspect
+        }
+        this.fromLeft = true
     }
 
     override fun onSurfaceCreated(gl: GL10, config: EGLConfig?) {
@@ -161,6 +184,11 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
         GLES20.glDisable(GLES20.GL_DEPTH_TEST)
         GLES20.glDisable(GLES20.GL_CULL_FACE)
         GLES20.glEnable(GLES20.GL_BLEND)
+
+        // val (prevPage, pageOne, pageTwo) = viewer.getPagesToDraw()!!
+        // val aspect = 0.5f / (pageOne.width / pageOne.height)
+        // touchY = aspect
+        // downTouchY = aspect
     }
 
     override fun onSurfaceChanged(gl: GL10, width: Int, height: Int) {
@@ -192,6 +220,9 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
         val passedTimeTotalMillis = currentTimeMillis - startTime
         lastFrameTime = currentTimeMillis
 
+        touchX += (downTouchX - touchX) * elapsedTimeMillis / 400f
+        touchY += (downTouchY - touchY) * elapsedTimeMillis / 400f
+
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
 
         GLES20.glUseProgram(shader)
@@ -207,44 +238,84 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
 
         GLES20.glUniform2f(touchI, touchX, touchY)
         // logcat { "Moved to $touchX, $touchY." }
-        GLES20.glUniform2f(
-            sourceI,
-            if (fromLeft) 0f else 1f,
-            0f,
-        )
 
         GLES20.glUniform1i(isSlipI, 0)
 
         GLES20.glDisable(GLES20.GL_DEPTH_TEST)
 
+        val dragging = true
+
         if (viewer.getPagesToDraw() != null) {
-            val (pageOne, pageTwo) = viewer.getPagesToDraw()!!
-            if (pageTwo != null) {
-                if (pageTwo.loaded) {
-                    // logcat { "Loading pageTwo with value ${pageTwo.gl_texture[0]}" }
-                    GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, pageTwo.gl_texture[0])
-                    GLES20.glUniform1f(aspectRatioI, pageTwo.width.toFloat() / pageTwo.height.toFloat())
-                    GLES20.glUniform1i(isDraggingI, 0)
-                    // logcat { "Drawing page 2 with texture ${pageTwo.gl_texture[0]}" }
-                    GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
+            val (prevPage, pageOne, pageTwo) = viewer.getPagesToDraw()!!
+
+            if (fromLeft) {
+                GLES20.glUniform2f(
+                    sourceI,
+                    0f,
+                    0f,
+                )
+                if (pageTwo != null) {
+                    if (pageTwo.loaded) {
+                        // logcat { "Loading pageTwo with value ${pageTwo.gl_texture[0]}" }
+                        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, pageTwo.gl_texture[0])
+                        GLES20.glUniform1f(aspectRatioI, pageTwo.width.toFloat() / pageTwo.height.toFloat())
+                        GLES20.glUniform1i(isDraggingI, 0)
+                        // logcat { "Drawing page 2 with texture ${pageTwo.gl_texture[0]}" }
+                        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
+                    } else {
+                        logcat { "Page two is not loaded" }
+                    }
                 } else {
-                    logcat { "Page two is not loaded" }
+                    logcat { "Page two is null" }
+                }
+                if (pageOne.loaded) {
+                    // logcat { "Loading pageOne with value ${pageOne.gl_texture[0]}" }
+                    GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, pageOne.gl_texture[0])
+                    GLES20.glUniform1f(aspectRatioI, pageOne.width.toFloat() / pageOne.height.toFloat())
+                    GLES20.glUniform1i(isDraggingI, if (dragging) 1 else 0)
+                    // logcat { "Aspect Ratio is: ${pageOne.width.toFloat() / pageOne.height}" }
+                    // logcat { "Drawing page 1 with texture ${pageOne.gl_texture[0]}" }
+                    GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
+                    if (dragging) {
+                        GLES20.glUniform1i(isSlipI, 1)
+                        GLES20.glUniform1i(isDraggingI, if (dragging) 1 else 0)
+                        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
+                    }
+                } else {
+                    logcat { "Page One not loaded!" }
                 }
             } else {
-                logcat { "Page two is null" }
-            }
-            if (pageOne.loaded) {
-                // logcat { "Loading pageOne with value ${pageOne.gl_texture[0]}" }
-                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, pageOne.gl_texture[0])
-                GLES20.glUniform1f(aspectRatioI, pageOne.width.toFloat() / pageOne.height.toFloat())
-                GLES20.glUniform1i(isDraggingI, if (isDragging) 1 else 0)
-                // logcat { "Aspect Ratio is: ${pageOne.width.toFloat() / pageOne.height}" }
-                // logcat { "Drawing page 1 with texture ${pageOne.gl_texture[0]}" }
-                GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
-                GLES20.glUniform1i(isSlipI, 1)
-                GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
-            } else {
-                logcat { "Page One not loaded!" }
+                GLES20.glUniform2f(
+                    sourceI,
+                    0f,
+                    0f,
+                )
+                if (pageOne.loaded) {
+                    // logcat { "Loading pageOne with value ${pageOne.gl_texture[0]}" }
+                    GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, pageOne.gl_texture[0])
+                    GLES20.glUniform1f(aspectRatioI, pageOne.width.toFloat() / pageOne.height.toFloat())
+                    GLES20.glUniform1i(isDraggingI, 0)
+                    // logcat { "Aspect Ratio is: ${pageOne.width.toFloat() / pageOne.height}" }
+                    // logcat { "Drawing page 1 with texture ${pageOne.gl_texture[0]}" }
+                    GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
+                } else {
+                    logcat { "Page One not loaded!" }
+                }
+                if (prevPage != null) {
+                    if (prevPage.loaded) {
+                        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, prevPage.gl_texture[0])
+                        GLES20.glUniform1f(aspectRatioI, pageOne.width.toFloat() / pageOne.height.toFloat())
+                        GLES20.glUniform1i(isDraggingI, if (dragging) 1 else 0)
+                        // logcat { "Aspect Ratio is: ${pageOne.width.toFloat() / pageOne.height}" }
+                        // logcat { "Drawing page 1 with texture ${pageOne.gl_texture[0]}" }
+                        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
+                        if (dragging) {
+                            GLES20.glUniform1i(isSlipI, 1)
+                            GLES20.glUniform1i(isDraggingI, if (dragging) 1 else 0)
+                            GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6)
+                        }
+                    }
+                }
             }
         } else {
             logcat { "Viewer.GetPages IS NULL!!!" }
@@ -312,7 +383,7 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
             vec2 modVert = vert;
             
             if(isSlip == 1) {
-                vec2 touchPoint = vec2(touch.x, (touch.y - 0.5) * displayAspectRatio / aspectRatio * 0.5);
+                vec2 touchPoint = vec2(touch.x, (touch.y - 0.5) / displayAspectRatio * aspectRatio + 0.5);
                 /*if(distance(source, touchPoint) > 1.) {
                 
                 }*/
@@ -325,6 +396,9 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
                 vec2 intersect = intersects(leftMost, rightMost, modVert, modVert - touchPointVec);
                 modVert = intersect + (intersect - modVert);
                 modVert = vec2(modVert.x, 1. - modVert.y);
+                texCoords = vec2(vert.x, vert.y);
+            } else {
+                texCoords = vec2(vert.x, 1. - vert.y);
             }
             
             if(aspectRatio > displayAspectRatio) {
@@ -335,7 +409,6 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
             
             vec4 outPos = vec4(modVert, 0., 1.);
             gl_Position = outPos;
-            texCoords = vec2(vert.x, 1. - vert.y);
             vPos = modVert;
         }
         
@@ -368,11 +441,19 @@ class BookRenderer(val viewer: BookViewer) : GLSurfaceView.Renderer {
             vec2 touchCorrect = vec2(touch.x, (touch.y - 0.5) / displayAspectRatio * aspectRatio + 0.5);
             vec4 color;
             
-            if(isDragging == 1 && isSlip == 0 ) {
-                if(distance(touchCorrect, texCoords) > distance(source, texCoords)) {
-                    discard;
+            if(isDragging == 1) {
+                if(isSlip == 1) {
+                    float shadow = (1. - abs(distance(touchCorrect, texCoords) - distance(source, texCoords))) / 4.;
+                    if(distance(touchCorrect, texCoords) < distance(source, texCoords)) {
+                        discard;
+                    }
+                    gl_FragColor = (1. - shadow) * vec4(texture2D(page, texCoords).rgb * min(distance(texCoords, touchCorrect) * 10., 1.) * min(distance(texCoords, source) * 10., 1.), 1.);
+                } else {
+                    if(distance(touchCorrect, texCoords) > distance(source, texCoords)) {
+                        discard;
+                    }
+                    gl_FragColor = vec4(texture2D(page, texCoords).rgb * min(distance(texCoords, touchCorrect) * 10., 1.) * min(distance(texCoords, source) * 10., 1.), 1.);
                 }
-                gl_FragColor = vec4(texture2D(page, texCoords).rgb * min(distance(texCoords, touchCorrect) * 10., 1.) * min(distance(texCoords, source) * 10., 1.), 1.);
             } else {
                 gl_FragColor = vec4(texture2D(page, texCoords).rgb, 1.);
             }
